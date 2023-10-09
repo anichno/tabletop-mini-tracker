@@ -1,0 +1,3 @@
+[workspace]
+
+members = ["simulator", "mini-mount", "mini-tracker"]
