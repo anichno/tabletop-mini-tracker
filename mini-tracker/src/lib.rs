@@ -1,3 +1,5 @@
+use float_cmp::{ApproxEq, F64Margin};
+
 #[derive(Clone, Copy, Debug)]
 pub enum Direction {
     Up,
@@ -7,20 +9,29 @@ pub enum Direction {
 }
 
 impl Direction {
-    pub fn to_degrees(&self) -> i32 {
+    pub fn to_degrees(&self) -> f64 {
         match self {
-            Direction::Up => 90,
-            Direction::Down => -90,
-            Direction::Left => 180,
-            Direction::Right => 0,
+            Direction::Up => 90.0,
+            Direction::Down => 270.0,
+            Direction::Left => 180.0,
+            Direction::Right => 0.0,
         }
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug)]
 pub struct Point {
-    pub x: i32,
-    pub y: i32,
+    pub x: f64,
+    pub y: f64,
+}
+
+impl float_cmp::ApproxEq for Point {
+    type Margin = float_cmp::F64Margin;
+
+    fn approx_eq<M: Into<Self::Margin>>(self, other: Self, margin: M) -> bool {
+        let margin = margin.into();
+        self.x.approx_eq(other.x, margin) && self.y.approx_eq(other.y, margin)
+    }
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -33,54 +44,55 @@ pub struct Line {
 
 pub struct Table {
     pub receivers: Vec<Receiver>,
-    table_top: Line,
-    table_bottom: Line,
-    table_left: Line,
-    table_right: Line,
+    pub table_top: Line,
+    pub table_bottom: Line,
+    pub table_left: Line,
+    pub table_right: Line,
 }
 
+#[derive(Clone, Copy, Debug)]
 pub struct Receiver {
-    pub view_angle: i32,
+    pub view_angle: f64,
     pub location: Point,
     pub facing: Direction,
-    view_bound1: Line, // guaranteed to be longer than the bounds of the table
-    view_bound2: Line,
+    pub view_bound1: Line, // guaranteed to be longer than the bounds of the table
+    pub view_bound2: Line,
 }
 
 impl Table {
     pub fn new(table_width: i32, table_height: i32, receivers: Vec<Receiver>) -> Self {
         let table_top = Line::new(
             Point {
-                x: 0,
-                y: table_height,
+                x: 0.0,
+                y: table_height as f64,
             },
             Point {
-                x: table_width,
-                y: table_height,
+                x: table_width as f64,
+                y: table_height as f64,
             },
         );
         let table_bottom = Line::new(
-            Point { x: 0, y: 0 },
+            Point { x: 0.0, y: 0.0 },
             Point {
-                x: table_width,
-                y: 0,
+                x: table_width as f64,
+                y: 0.0,
             },
         );
         let table_left = Line::new(
-            Point { x: 0, y: 0 },
+            Point { x: 0.0, y: 0.0 },
             Point {
-                x: 0,
-                y: table_height,
+                x: 0.0,
+                y: table_height as f64,
             },
         );
         let table_right = Line::new(
             Point {
-                x: table_width,
-                y: 0,
+                x: table_width as f64,
+                y: 0.0,
             },
             Point {
-                x: table_width,
-                y: table_height,
+                x: table_width as f64,
+                y: table_height as f64,
             },
         );
 
@@ -94,7 +106,9 @@ impl Table {
     }
     pub fn send_sync(&self) {}
 
-    pub fn get_location(&self, receivers: &[(&Receiver, bool)]) -> (Point, i32) {
+    pub fn get_location(&self, receivers: &[(&Receiver, bool)]) -> (Point, f64) {
+        let point_margin = float_cmp::F64Margin::default().epsilon(0.0001);
+
         // for each receiver that can see the mini, add points for all intersections created by view lines, then remove any points which cannot be seen by this receiver
         let mut bounding_lines = vec![
             self.table_top,
@@ -108,12 +122,12 @@ impl Table {
         for (receiver, _) in receivers.iter().filter(|(_, v)| *v) {
             for line in &bounding_lines {
                 if let Some(intersect) = line.intersection(&receiver.view_bound1) {
-                    if intersect != receiver.location {
+                    if intersect.approx_ne(receiver.location, point_margin) {
                         intersections.push(intersect);
                     }
                 }
                 if let Some(intersect) = line.intersection(&receiver.view_bound2) {
-                    if intersect != receiver.location {
+                    if intersect.approx_ne(receiver.location, point_margin) {
                         intersections.push(intersect);
                     }
                 }
@@ -126,6 +140,7 @@ impl Table {
 
         // for each receiver, if receiver can see mini, keep points it CAN see. if CANNOT see mini, keep points it CANNOT see
         for (receiver, mini_visible) in receivers {
+            // dbg!(intersections.len());
             if *mini_visible {
                 intersections.retain(|p| receiver.can_see(p));
             } else {
@@ -133,18 +148,20 @@ impl Table {
             }
         }
 
+        assert!(intersections.len() > 0);
+
         // find the centroid of all remaining points
-        let mut x_sum = 0;
-        let mut y_sum = 0;
+        let mut x_sum = 0.0;
+        let mut y_sum = 0.0;
         for point in &intersections {
             x_sum += point.x;
             y_sum += point.y;
         }
-        x_sum /= intersections.len() as i32;
-        y_sum /= intersections.len() as i32;
+        x_sum /= intersections.len() as f64;
+        y_sum /= intersections.len() as f64;
 
         // find the max distance from the centroid
-        let mut max_distance = 0;
+        let mut max_distance = 0.0;
         for point in &intersections {
             let distance = Point { x: x_sum, y: y_sum }.distance(point);
             if distance > max_distance {
@@ -160,7 +177,7 @@ impl Receiver {
     pub fn new(
         table_width: i32,
         table_height: i32,
-        view_angle: i32,
+        view_angle: f64,
         location: Point,
         facing: Direction,
     ) -> Self {
@@ -168,12 +185,12 @@ impl Receiver {
         let angle2 = (facing.to_degrees() as f64 - (view_angle as f64) / 2.0).to_radians();
         let distance = ((table_width + table_height) * 2) as f64;
         let far_point1 = Point {
-            x: (distance * angle1.cos()).round() as i32,
-            y: (distance * angle1.sin()).round() as i32,
+            x: (distance * angle1.cos()) + location.x,
+            y: (distance * angle1.sin()) + location.y,
         };
         let far_point2 = Point {
-            x: (distance * angle2.cos()).round() as i32,
-            y: (distance * angle2.sin()).round() as i32,
+            x: (distance * angle2.cos()) + location.x,
+            y: (distance * angle2.sin()) + location.y,
         };
 
         let too_long1 = Line::new(location, far_point1);
@@ -189,32 +206,49 @@ impl Receiver {
     }
 
     pub fn can_see(&self, point: &Point) -> bool {
-        // move receiver to origin and do corresponding move to point
-        // can assume location is always positive Q1
-        let moved_point = Point {
-            x: point.x - self.location.x,
-            y: point.y - self.location.y,
-        };
+        // // move receiver to origin and do corresponding move to point
+        // // can assume location is always positive Q1
+        // let moved_point = Point {
+        //     x: point.x - self.location.x,
+        //     y: point.y - self.location.y,
+        // };
 
-        // rotate so view angle is looking to the right
-        let rotate_rad = match self.facing {
-            Direction::Up => -90.0 * (std::f64::consts::PI / 180.0),
-            Direction::Down => 90.0 * (std::f64::consts::PI / 180.0),
-            Direction::Left => 180.0 * (std::f64::consts::PI / 180.0),
-            Direction::Right => 0.0 * (std::f64::consts::PI / 180.0),
-        };
+        // // rotate so view angle is looking to the right
+        // let rotate_rad = match self.facing {
+        //     Direction::Up => -90.0 * (std::f64::consts::PI / 180.0),
+        //     Direction::Down => 90.0 * (std::f64::consts::PI / 180.0),
+        //     Direction::Left => 180.0 * (std::f64::consts::PI / 180.0),
+        //     Direction::Right => 0.0 * (std::f64::consts::PI / 180.0),
+        // };
 
-        let rotated_point = moved_point.rotate_around_origin(rotate_rad);
+        // let rotated_point = moved_point.rotate_around_origin(rotate_rad);
 
-        // check if point angle is within fov
-        let angle = rotated_point.angle_from_origin();
-        angle <= (self.view_angle / 2) + 1 && angle >= -(self.view_angle / 2) - 1
+        // // check if point angle is within fov
+        // let angle = rotated_point.angle_from_origin();
+        let mut angle = self.location.angle(point);
+        // if angle < 0.0 {
+        //     angle = 360.0 + angle;
+        // }
+
+        match self.facing {
+            Direction::Up | Direction::Left | Direction::Down => {
+                if angle < 0.0 {
+                    angle = 360.0 + angle;
+                }
+                angle >= self.facing.to_degrees() - (self.view_angle / 2.0)
+                    && angle <= self.facing.to_degrees() + (self.view_angle / 2.0)
+            }
+            Direction::Right => angle.abs() <= (self.view_angle / 2.0),
+        }
+
+        // let viewer = self.facing.to_degrees();
+        // angle <= (self.view_angle / 2.0) && angle >= -(self.view_angle / 2.0)
     }
 }
 
 impl Point {
-    pub fn distance(&self, other: &Self) -> i32 {
-        (((self.x - other.x).pow(2) + (self.y - other.y).pow(2)) as f64).sqrt() as i32
+    pub fn distance(&self, other: &Self) -> f64 {
+        ((self.x - other.x).powf(2.0) + (self.y - other.y).powf(2.0)).sqrt()
     }
 
     pub fn rotate_around_origin(&self, angle: f64) -> Self {
@@ -222,24 +256,21 @@ impl Point {
         let orig_y = self.y as f64;
         let x = orig_x * angle.cos() - orig_y * angle.sin();
         let y = orig_y * angle.cos() + orig_x * angle.sin();
-        Point {
-            x: x.round() as i32,
-            y: y.round() as i32,
-        }
+        Point { x: x, y: y }
     }
 
-    pub fn angle(&self, other: &Self) -> i32 {
+    pub fn angle(&self, other: &Self) -> f64 {
         let x = (other.x - self.x) as f64;
         let y = (other.y - self.y) as f64;
 
-        y.atan2(x).to_degrees().round() as i32
+        y.atan2(x).to_degrees()
     }
 
-    pub fn angle_from_origin(&self) -> i32 {
+    pub fn angle_from_origin(&self) -> f64 {
         let x = self.x as f64;
         let y = self.y as f64;
 
-        y.atan2(x).to_degrees().round() as i32
+        y.atan2(x).to_degrees()
     }
 }
 
@@ -280,8 +311,8 @@ impl Line {
             x = (other.b - self.b) / (self.m - other.m);
             y = self.m * x + self.b;
         }
-        let x = x.round() as i32;
-        let y = y.round() as i32;
+        // let x = x.round() as i32;
+        // let y = y.round() as i32;
 
         // check if on segment 1
         if x < self.point1.x.min(self.point2.x) || x > self.point1.x.max(self.point2.x) {
@@ -305,100 +336,126 @@ impl Line {
 
 #[cfg(test)]
 mod test {
+    use float_cmp::assert_approx_eq;
+
     use super::*;
 
     #[test]
     fn distance() {
-        let point1 = Point { x: 1, y: 1 };
-        let point2 = Point { x: 4, y: 5 };
+        let point1 = Point { x: 1.0, y: 1.0 };
+        let point2 = Point { x: 4.0, y: 5.0 };
 
-        assert_eq!(point1.distance(&point2), 5);
-        assert_eq!(point2.distance(&point1), 5);
+        assert_eq!(point1.distance(&point2), 5.0);
+        assert_eq!(point2.distance(&point1), 5.0);
     }
 
     #[test]
     fn can_see() {
-        let point = Point { x: 100, y: 100 };
+        let point = Point { x: 100.0, y: 100.0 };
 
-        let up = Receiver::new(200, 200, 45, Point { x: 100, y: 0 }, Direction::Up);
+        let up = Receiver::new(200, 200, 45.0, Point { x: 100.0, y: 0.0 }, Direction::Up);
         assert!(up.can_see(&point));
 
-        let right = Receiver::new(200, 200, 45, Point { x: 0, y: 100 }, Direction::Right);
+        let right = Receiver::new(200, 200, 45.0, Point { x: 0.0, y: 100.0 }, Direction::Right);
         assert!(right.can_see(&point));
 
-        let down = Receiver::new(200, 200, 45, Point { x: 100, y: 200 }, Direction::Down);
+        let down = Receiver::new(
+            200,
+            200,
+            45.0,
+            Point { x: 100.0, y: 200.0 },
+            Direction::Down,
+        );
         assert!(down.can_see(&point));
 
-        let left = Receiver::new(200, 200, 45, Point { x: 200, y: 100 }, Direction::Left);
+        let left = Receiver::new(
+            200,
+            200,
+            45.0,
+            Point { x: 200.0, y: 100.0 },
+            Direction::Left,
+        );
         assert!(left.can_see(&point));
     }
 
     #[test]
     fn cannot_see() {
-        let point = Point { x: 100, y: 100 };
+        let point = Point { x: 100.0, y: 100.0 };
 
-        let up = Receiver::new(200, 200, 45, Point { x: 202, y: 0 }, Direction::Up);
+        let up = Receiver::new(200, 200, 45.0, Point { x: 202.0, y: 0.0 }, Direction::Up);
         assert!(!up.can_see(&point));
 
-        let right = Receiver::new(200, 200, 45, Point { x: 0, y: 202 }, Direction::Right);
+        let right = Receiver::new(200, 200, 45.0, Point { x: 0.0, y: 202.0 }, Direction::Right);
         assert!(!right.can_see(&point));
 
-        let down = Receiver::new(200, 200, 45, Point { x: 202, y: 200 }, Direction::Down);
+        let down = Receiver::new(
+            200,
+            200,
+            45.0,
+            Point { x: 202.0, y: 200.0 },
+            Direction::Down,
+        );
         assert!(!down.can_see(&point));
 
-        let left = Receiver::new(200, 200, 45, Point { x: 200, y: 202 }, Direction::Left);
+        let left = Receiver::new(
+            200,
+            200,
+            45.0,
+            Point { x: 200.0, y: 202.0 },
+            Direction::Left,
+        );
         assert!(!left.can_see(&point));
     }
 
     #[test]
     fn rotate_around_origin() {
-        let point = Point { x: 2, y: 2 };
+        let point = Point { x: 2.0, y: 2.0 };
 
         let rotated = point.rotate_around_origin(90.0 * (std::f64::consts::PI / 180.0));
-        assert_eq!(rotated.x, -2);
-        assert_eq!(rotated.y, 2);
+        assert_approx_eq!(f64, rotated.x, -2.0, epsilon = 0.00001);
+        assert_eq!(rotated.y, 2.0);
     }
 
     #[test]
     fn angle() {
-        let origin = Point { x: 0, y: 0 };
-        let point = Point { x: 8, y: 8 };
+        let origin = Point { x: 0.0, y: 0.0 };
+        let point = Point { x: 8.0, y: 8.0 };
 
-        assert_eq!(origin.angle(&point), 45)
+        assert_eq!(origin.angle(&point), 45.0)
     }
 
     #[test]
     fn angle_from_origin() {
-        let point = Point { x: 8, y: 8 };
+        let point = Point { x: 8.0, y: 8.0 };
 
-        assert_eq!(point.angle_from_origin(), 45)
+        assert_eq!(point.angle_from_origin(), 45.0)
     }
 
     #[test]
     fn line_segment_intersect() {
-        let p1 = Point { x: 1, y: 2 };
-        let p2 = Point { x: 6, y: 0 };
+        let p1 = Point { x: 1.0, y: 2.0 };
+        let p2 = Point { x: 6.0, y: 0.0 };
         let line1 = Line::new(p1, p2);
 
-        let p1 = Point { x: 3, y: 1 };
-        let p2 = Point { x: 7, y: 8 };
+        let p1 = Point { x: 3.0, y: 1.0 };
+        let p2 = Point { x: 7.0, y: 8.0 };
         let line2 = Line::new(p1, p2);
 
         let intersect = line1.intersection(&line2).unwrap();
-        assert_eq!(intersect.x, 3);
-        assert_eq!(intersect.y, 1);
+        assert_approx_eq!(f64, intersect.x, 3.09302, epsilon = 0.00001);
+        assert_approx_eq!(f64, intersect.y, 1.16279, epsilon = 0.00001);
 
-        let p1 = Point { x: 0, y: 0 };
-        let p2 = Point { x: 200, y: 200 };
+        let p1 = Point { x: 0.0, y: 0.0 };
+        let p2 = Point { x: 200.0, y: 200.0 };
         let line1 = Line::new(p1, p2);
 
-        let p1 = Point { x: 0, y: 200 };
-        let p2 = Point { x: 200, y: 0 };
+        let p1 = Point { x: 0.0, y: 200.0 };
+        let p2 = Point { x: 200.0, y: 0.0 };
         let line2 = Line::new(p1, p2);
 
         let intersect = line1.intersection(&line2).unwrap();
-        assert_eq!(intersect.x, 100);
-        assert_eq!(intersect.y, 100);
+        assert_eq!(intersect.x, 100.0);
+        assert_eq!(intersect.y, 100.0);
     }
 
     #[test]
@@ -406,6 +463,8 @@ mod test {
         const MM_PER_INCH: i32 = 25;
         const TABLE_WIDTH: i32 = 930;
         const TABLE_HEIGHT: i32 = 523;
+
+        let point_margin = float_cmp::F64Margin::default().epsilon(0.0001);
 
         // assume all equal view angles and spacing, 1 sensor per inch
         let mut receivers = Vec::new();
@@ -417,15 +476,21 @@ mod test {
             receivers.push(Receiver::new(
                 TABLE_WIDTH,
                 TABLE_HEIGHT,
-                20,
-                Point { x, y: 0 },
+                20.0,
+                Point {
+                    x: x as f64,
+                    y: 0.0,
+                },
                 Direction::Up,
             ));
             receivers.push(Receiver::new(
                 TABLE_WIDTH,
                 TABLE_HEIGHT,
-                20,
-                Point { x, y: TABLE_HEIGHT },
+                20.0,
+                Point {
+                    x: x as f64,
+                    y: TABLE_HEIGHT as f64,
+                },
                 Direction::Down,
             ));
         }
@@ -437,15 +502,21 @@ mod test {
             receivers.push(Receiver::new(
                 TABLE_WIDTH,
                 TABLE_HEIGHT,
-                20,
-                Point { x: 0, y },
+                20.0,
+                Point {
+                    x: 0.0,
+                    y: y as f64,
+                },
                 Direction::Right,
             ));
             receivers.push(Receiver::new(
                 TABLE_WIDTH,
                 TABLE_HEIGHT,
-                20,
-                Point { x: TABLE_WIDTH, y },
+                20.0,
+                Point {
+                    x: TABLE_WIDTH as f64,
+                    y: y as f64,
+                },
                 Direction::Left,
             ));
         }
@@ -463,14 +534,16 @@ mod test {
             let mut intersections = 0;
             for line in &bounding_lines {
                 if let Some(intersect) = line.intersection(&receiver.view_bound1) {
-                    if intersect != receiver.location {
-                        dbg!(line);
+                    // dbg!(intersect);
+                    if intersect.approx_ne(receiver.location, point_margin) {
+                        // dbg!(line);
                         intersections += 1;
                     }
                 }
                 if let Some(intersect) = line.intersection(&receiver.view_bound2) {
-                    if intersect != receiver.location {
-                        dbg!(line);
+                    // dbg!(intersect);
+                    if intersect.approx_ne(receiver.location, point_margin) {
+                        // dbg!(line);
                         intersections += 1;
                     }
                 }
