@@ -1,4 +1,4 @@
-use float_cmp::{ApproxEq, F32Margin};
+use float_cmp::ApproxEq;
 
 #[derive(Clone, Copy, Debug)]
 pub enum Direction {
@@ -173,7 +173,7 @@ impl Table {
             }
         }
 
-        assert!(intersections.len() > 0);
+        assert!(!intersections.is_empty());
 
         // find the centroid of all remaining points
         let mut x_sum = 0.0;
@@ -209,7 +209,7 @@ impl Receiver {
     ) -> Self {
         let angle1 = (facing.to_degrees() + (view_angle) / 2.0).to_radians();
         let angle2 = (facing.to_degrees() - (view_angle) / 2.0).to_radians();
-        let distance = ((table_width + table_height) * 2.0);
+        let distance = (table_width + table_height) * 2.0;
         let far_point1 = Point {
             x: (distance * angle1.cos()) + location.x,
             y: (distance * angle1.sin()) + location.y,
@@ -246,7 +246,7 @@ impl Receiver {
         match self.facing {
             Direction::Up | Direction::Left | Direction::Down => {
                 if angle < 0.0 {
-                    angle = 360.0 + angle;
+                    angle += 360.0;
                 }
                 angle >= self.facing.to_degrees() - (self.view_angle / 2.0) - 0.01
                     && angle <= self.facing.to_degrees() + (self.view_angle / 2.0) + 0.01
@@ -261,7 +261,7 @@ impl Receiver {
         match self.facing {
             Direction::Up | Direction::Left | Direction::Down => {
                 if angle < 0.0 {
-                    angle = 360.0 + angle;
+                    angle += 360.0;
                 }
                 angle >= self.facing.to_degrees() - (self.view_angle / 2.0) - 0.01
                     && angle <= self.facing.to_degrees() + (self.view_angle / 2.0) + 0.01
@@ -276,7 +276,7 @@ impl Receiver {
         match self.facing {
             Direction::Up | Direction::Left | Direction::Down => {
                 if angle < 0.0 {
-                    angle = 360.0 + angle;
+                    angle += 360.0;
                 }
                 !(angle >= self.facing.to_degrees() - (self.view_angle / 2.0) + 0.01
                     && angle <= self.facing.to_degrees() + (self.view_angle / 2.0) - 0.01)
@@ -296,12 +296,12 @@ impl Point {
         let orig_y = self.y;
         let x = orig_x * angle.cos() - orig_y * angle.sin();
         let y = orig_y * angle.cos() + orig_x * angle.sin();
-        Point { x: x, y: y }
+        Point { x, y }
     }
 
     pub fn angle(&self, other: &Self) -> f32 {
-        let x = (other.x - self.x);
-        let y = (other.y - self.y);
+        let x = other.x - self.x;
+        let y = other.y - self.y;
 
         y.atan2(x).to_degrees()
     }
@@ -378,7 +378,7 @@ impl Line {
     pub fn parallel_line(&self, distance: f32, left: bool) -> Line {
         let mut angle = self.point1.angle(&self.point2);
         if angle < 0.0 {
-            angle = 360.0 + angle;
+            angle += 360.0;
         }
         if left {
             angle += 90.0

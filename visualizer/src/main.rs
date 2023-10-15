@@ -16,7 +16,7 @@ const MM_PER_INCH: f32 = 25.4;
 const TABLE_WIDTH: f32 = 930.0;
 const TABLE_HEIGHT: f32 = 523.0;
 
-const RECEIVER_SIZE: f32 = 2.5 * PX_PER_MM as f32;
+const RECEIVER_SIZE: f32 = 2.5 * PX_PER_MM;
 
 fn convert_y(y: f32) -> f32 {
     (TABLE_HEIGHT - y) * PX_PER_MM
@@ -97,7 +97,7 @@ impl WindowHandler for Visualizer {
         let (x, y) = (convert_x(x), convert_y(y));
         graphics.draw_circle(
             (x, y),
-            (MM_PER_INCH * PX_PER_MM) as f32 / 2.0,
+            (MM_PER_INCH * PX_PER_MM) / 2.0,
             speedy2d::color::Color::RED,
         );
 
@@ -111,14 +111,14 @@ impl WindowHandler for Visualizer {
                 for point in self.positive_intersect_checkpoints[idx].iter() {
                     let (x, y) = (point.x, point.y);
                     let (x, y) = (convert_x(x), convert_y(y));
-                    graphics.draw_circle((x, y), (3.0 * PX_PER_MM), speedy2d::color::Color::CYAN);
+                    graphics.draw_circle((x, y), 3.0 * PX_PER_MM, speedy2d::color::Color::CYAN);
                 }
             } else {
                 let idx = self.active_receiver_idx.unwrap();
                 for point in self.negative_intersect_checkpoints[idx].iter() {
                     let (x, y) = (point.x, point.y);
                     let (x, y) = (convert_x(x), convert_y(y));
-                    graphics.draw_circle((x, y), (3.0 * PX_PER_MM), speedy2d::color::Color::CYAN);
+                    graphics.draw_circle((x, y), 3.0 * PX_PER_MM, speedy2d::color::Color::CYAN);
                 }
             }
         }
@@ -216,22 +216,20 @@ impl WindowHandler for Visualizer {
                                 self.active_receiver_idx = Some(idx);
                                 break;
                             }
-                        } else {
-                            if self.showing_negative {
-                                self.showing_negative = false;
-                                for (idx, (_, can_see)) in
-                                    self.visible_receivers.iter().enumerate().rev()
-                                {
-                                    if *can_see {
-                                        println!("{idx}");
-                                        self.active_receiver_idx = Some(idx);
-                                        break 'outer;
-                                    }
+                        } else if self.showing_negative {
+                            self.showing_negative = false;
+                            for (idx, (_, can_see)) in
+                                self.visible_receivers.iter().enumerate().rev()
+                            {
+                                if *can_see {
+                                    println!("{idx}");
+                                    self.active_receiver_idx = Some(idx);
+                                    break 'outer;
                                 }
-                            } else {
-                                self.active_receiver_idx = None;
-                                break;
                             }
+                        } else {
+                            self.active_receiver_idx = None;
+                            break;
                         }
                     }
                 }
@@ -252,13 +250,11 @@ impl WindowHandler for Visualizer {
                                     }
                                 }
                             }
-                        } else {
-                            if (self.visible_receivers[idx].1 && !self.showing_negative)
-                                || (!self.visible_receivers[idx].1 && self.showing_negative)
-                            {
-                                self.active_receiver_idx = Some(idx);
-                                break;
-                            }
+                        } else if (self.visible_receivers[idx].1 && !self.showing_negative)
+                            || (!self.visible_receivers[idx].1 && self.showing_negative)
+                        {
+                            self.active_receiver_idx = Some(idx);
+                            break;
                         }
                     }
                 } else {
@@ -350,15 +346,13 @@ fn get_point_checkpoints(
     for (receiver, mini_visible) in visible_receivers {
         if *mini_visible {
             intersections.retain(|p| receiver.can_see_estimated(p));
-        } else {
         }
 
         positive_checkpoints.push(intersections.clone());
     }
 
     for (receiver, mini_visible) in visible_receivers {
-        if *mini_visible {
-        } else {
+        if !*mini_visible {
             intersections.retain(|p| receiver.cannot_see(p));
         }
 
@@ -371,11 +365,10 @@ fn get_point_checkpoints(
 fn get_mini_edge_points(mini_center: Point) -> [Point; 360] {
     let mut points = [Point { x: 0.0, y: 0.0 }; 360];
     let distance = MM_PER_INCH / 2.0;
-    for i in 0..360 {
+    for (i, point) in points.iter_mut().enumerate() {
         let angle = i as f32;
-        let x = mini_center.x + distance * angle.to_radians().cos();
-        let y = mini_center.y + distance * angle.to_radians().sin();
-        points[i] = Point { x, y };
+        point.x = mini_center.x + distance * angle.to_radians().cos();
+        point.y = mini_center.y + distance * angle.to_radians().sin();
     }
     points
 }
@@ -396,7 +389,7 @@ fn main() {
                 break;
             }
         }
-        visible_receivers.push((receiver.clone(), can_see));
+        visible_receivers.push((*receiver, can_see));
     }
 
     let (positive_intersect_checkpoints, negative_intersect_checkpoints) =

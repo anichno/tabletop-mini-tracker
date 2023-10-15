@@ -18,11 +18,10 @@ const GRID_SIZE: f32 = MM_PER_INCH;
 fn get_mini_edge_points(mini_center: Point) -> [Point; 360] {
     let mut points = [Point { x: 0.0, y: 0.0 }; 360];
     let distance = MM_PER_INCH / 2.0;
-    for i in 0..360 {
+    for (i, point) in points.iter_mut().enumerate() {
         let angle = i as f32;
-        let x = mini_center.x + distance * angle.to_radians().cos();
-        let y = mini_center.y + distance * angle.to_radians().sin();
-        points[i] = Point { x, y };
+        point.x = mini_center.x + distance * angle.to_radians().cos();
+        point.y = mini_center.y + distance * angle.to_radians().sin();
     }
     points
 }
