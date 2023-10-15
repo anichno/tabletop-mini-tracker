@@ -109,6 +109,15 @@ impl Table {
     }
     pub fn send_sync(&self) {}
 
+    fn receivers_can_see_estimated(&self, receivers: &[&Receiver], point: &Point) -> bool {
+        for receiver in receivers {
+            if !receiver.can_see_estimated(point) {
+                return false;
+            }
+        }
+        true
+    }
+
     pub fn get_location(&self, receivers: &[(&Receiver, bool)]) -> (Point, f32) {
         let point_margin = float_cmp::F32Margin::default().epsilon(0.0001);
 
@@ -122,31 +131,44 @@ impl Table {
 
         let mut intersections: Vec<Point> = Vec::new();
 
+        let can_see_receivers: Vec<&Receiver> = receivers
+            .iter()
+            .filter(|(_, v)| *v)
+            .map(|(r, _)| *r)
+            .collect();
+
+        // Note: by testing each point as we go against receivers, we can save a lot of memory for really not much of a performance hit
         for (receiver, _) in receivers.iter() {
             for line in &bounding_lines {
                 if let Some(intersect) = line.intersection(&receiver.expanded_view_bound1, true) {
-                    if intersect.approx_ne(receiver.location, point_margin) {
+                    if self.receivers_can_see_estimated(&can_see_receivers, &intersect) {
                         intersections.push(intersect);
                     }
                 }
                 if let Some(intersect) = line.intersection(&receiver.expanded_view_bound2, true) {
-                    if intersect.approx_ne(receiver.location, point_margin) {
+                    if self.receivers_can_see_estimated(&can_see_receivers, &intersect) {
                         intersections.push(intersect);
                     }
                 }
 
                 if let Some(intersect) = line.intersection(&receiver.view_bound1, true) {
                     if intersect.approx_ne(receiver.location, point_margin) {
-                        intersections.push(intersect);
+                        if self.receivers_can_see_estimated(&can_see_receivers, &intersect) {
+                            intersections.push(intersect);
+                        }
                     }
                 }
                 if let Some(intersect) = line.intersection(&receiver.view_bound2, true) {
                     if intersect.approx_ne(receiver.location, point_margin) {
-                        intersections.push(intersect);
+                        if self.receivers_can_see_estimated(&can_see_receivers, &intersect) {
+                            intersections.push(intersect);
+                        }
                     }
                 }
             }
-            intersections.push(receiver.location);
+            if self.receivers_can_see_estimated(&can_see_receivers, &receiver.location) {
+                intersections.push(receiver.location);
+            }
 
             bounding_lines.push(receiver.expanded_view_bound1);
             bounding_lines.push(receiver.expanded_view_bound2);
@@ -154,23 +176,8 @@ impl Table {
             bounding_lines.push(receiver.view_bound2);
         }
 
-        // for each receiver, if receiver can see mini, keep points it CAN see. if CANNOT see mini, keep points it CANNOT see
-        for (receiver, mini_visible) in receivers {
-            // dbg!(intersections.len());
-            if *mini_visible {
-                intersections.retain(|p| receiver.can_see_estimated(p));
-            } else {
-                // intersections.retain(|p| !receiver.can_see(p));
-            }
-        }
-
-        for (receiver, mini_visible) in receivers {
-            // dbg!(intersections.len());
-            if *mini_visible {
-                // intersections.retain(|p| receiver.can_see(p));
-            } else if intersections.len() > 1 {
-                intersections.retain(|p| receiver.cannot_see(p));
-            }
+        for (receiver, _) in receivers.iter().filter(|(_, v)| !*v) {
+            intersections.retain(|p| receiver.cannot_see(p));
         }
 
         assert!(!intersections.is_empty());

@@ -33,7 +33,6 @@ fn main() {
     let mut receivers = Vec::new();
 
     // top/bottom
-    // top/bottom
     let mut x = MM_PER_INCH / 2.0;
     while x < TABLE_WIDTH {
         receivers.push(Receiver::new(
@@ -84,14 +83,14 @@ fn main() {
     let mut max_actual_error = 0.0;
 
     let mut x = GRID_SIZE / 2.0;
-    let mut y = GRID_SIZE / 2.0;
 
     while x < TABLE_WIDTH - GRID_SIZE / 2.0 {
+        let mut y = GRID_SIZE / 2.0;
         while y < TABLE_HEIGHT - GRID_SIZE / 2.0 {
             tot_locations += 1;
             let mini_location = Point { x, y };
             let mut num_visible_receivers = 0;
-            println!("mini_location: {:?}", mini_location);
+            // println!("mini_location: {:?}", mini_location);
             let mini_edge_points = get_mini_edge_points(mini_location);
             let mut visible_receivers = Vec::new();
             for receiver in table.receivers.iter() {
@@ -119,7 +118,7 @@ fn main() {
             if guessed_location.distance(&mini_location) < GRID_SIZE {
                 num_correct += 1;
             } else {
-                dbg!(mini_location, guessed_location);
+                // dbg!(mini_location, guessed_location);
             }
 
             let actual_error = guessed_location.distance(&mini_location);
