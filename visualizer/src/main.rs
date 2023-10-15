@@ -3,9 +3,9 @@ use mini_tracker::{self, Point, Receiver, Table};
 use speedy2d::{shape::Rectangle, window::WindowHandler};
 
 // 1 px == 1 mm
-const PX_PER_MM: i32 = 3;
+const PX_PER_MM: f32 = 3.0;
 // 25mm == ~1 in
-const MM_PER_INCH: i32 = 25;
+const MM_PER_INCH: f32 = 25.4;
 
 // grid is
 // |
@@ -13,68 +13,62 @@ const MM_PER_INCH: i32 = 25;
 // |
 // .--------
 
-const TABLE_WIDTH: i32 = 930;
-const TABLE_HEIGHT: i32 = 523;
+const TABLE_WIDTH: f32 = 930.0;
+const TABLE_HEIGHT: f32 = 523.0;
 
 const RECEIVER_SIZE: f32 = 2.5 * PX_PER_MM as f32;
 
-fn convert_y(y: f64) -> f32 {
-    ((TABLE_HEIGHT as f32) - y as f32) * PX_PER_MM as f32
+fn convert_y(y: f32) -> f32 {
+    (TABLE_HEIGHT - y) * PX_PER_MM
 }
 
-fn convert_x(x: f64) -> f32 {
-    x as f32 * PX_PER_MM as f32
+fn convert_x(x: f32) -> f32 {
+    x * PX_PER_MM
 }
 
 fn place_receivers() -> Vec<Receiver> {
     let mut receivers = Vec::new();
 
     // top/bottom
-    for x in (MM_PER_INCH / 2..TABLE_WIDTH).step_by((MM_PER_INCH / 1) as usize) {
+    let mut x = MM_PER_INCH / 2.0;
+    while x < TABLE_WIDTH {
         receivers.push(Receiver::new(
             TABLE_WIDTH,
             TABLE_HEIGHT,
             30.0,
-            Point {
-                x: x as f64,
-                y: 0.0,
-            },
+            Point { x, y: 0.0 },
             mini_tracker::Direction::Up,
         ));
         receivers.push(Receiver::new(
             TABLE_WIDTH,
             TABLE_HEIGHT,
             30.0,
-            Point {
-                x: x as f64,
-                y: TABLE_HEIGHT as f64,
-            },
+            Point { x, y: TABLE_HEIGHT },
             mini_tracker::Direction::Down,
         ));
+
+        x += MM_PER_INCH;
     }
 
     // left/right
-    for y in (MM_PER_INCH / 2..TABLE_HEIGHT).step_by((MM_PER_INCH / 1) as usize) {
+    let mut y = MM_PER_INCH / 2.0;
+    while y < TABLE_HEIGHT {
         receivers.push(Receiver::new(
             TABLE_WIDTH,
             TABLE_HEIGHT,
             20.0,
-            Point {
-                x: 0.0,
-                y: y as f64,
-            },
+            Point { x: 0.0, y },
             mini_tracker::Direction::Right,
         ));
         receivers.push(Receiver::new(
             TABLE_WIDTH,
             TABLE_HEIGHT,
             20.0,
-            Point {
-                x: TABLE_WIDTH as f64,
-                y: y as f64,
-            },
+            Point { x: TABLE_WIDTH, y },
             mini_tracker::Direction::Left,
         ));
+
+        y += MM_PER_INCH;
     }
 
     receivers
@@ -117,22 +111,14 @@ impl WindowHandler for Visualizer {
                 for point in self.positive_intersect_checkpoints[idx].iter() {
                     let (x, y) = (point.x, point.y);
                     let (x, y) = (convert_x(x), convert_y(y));
-                    graphics.draw_circle(
-                        (x, y),
-                        (3 * PX_PER_MM) as f32,
-                        speedy2d::color::Color::CYAN,
-                    );
+                    graphics.draw_circle((x, y), (3.0 * PX_PER_MM), speedy2d::color::Color::CYAN);
                 }
             } else {
                 let idx = self.active_receiver_idx.unwrap();
                 for point in self.negative_intersect_checkpoints[idx].iter() {
                     let (x, y) = (point.x, point.y);
                     let (x, y) = (convert_x(x), convert_y(y));
-                    graphics.draw_circle(
-                        (x, y),
-                        (3 * PX_PER_MM) as f32,
-                        speedy2d::color::Color::CYAN,
-                    );
+                    graphics.draw_circle((x, y), (3.0 * PX_PER_MM), speedy2d::color::Color::CYAN);
                 }
             }
         }
@@ -313,7 +299,7 @@ fn get_point_checkpoints(
 ) -> (Vec<Vec<Point>>, Vec<Vec<Point>>) {
     let mut positive_checkpoints = Vec::new();
     let mut negative_checkpoints = Vec::new();
-    let point_margin = float_cmp::F64Margin::default().epsilon(0.0001);
+    let point_margin = float_cmp::F32Margin::default().epsilon(0.0001);
 
     // for each receiver that can see the mini, add points for all intersections created by view lines, then remove any points which cannot be seen by this receiver
     let mut bounding_lines = vec![
@@ -384,9 +370,9 @@ fn get_point_checkpoints(
 
 fn get_mini_edge_points(mini_center: Point) -> [Point; 360] {
     let mut points = [Point { x: 0.0, y: 0.0 }; 360];
-    let distance = MM_PER_INCH as f64 / 2.0;
+    let distance = MM_PER_INCH / 2.0;
     for i in 0..360 {
-        let angle = i as f64;
+        let angle = i as f32;
         let x = mini_center.x + distance * angle.to_radians().cos();
         let y = mini_center.y + distance * angle.to_radians().sin();
         points[i] = Point { x, y };

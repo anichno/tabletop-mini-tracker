@@ -2,7 +2,7 @@ use mini_tracker::{self, Point, Receiver, Table};
 
 // 1 px == 1 mm
 // 25mm == ~1 in
-const MM_PER_INCH: i32 = 25;
+const MM_PER_INCH: f32 = 25.4;
 
 // grid is
 // |
@@ -10,16 +10,16 @@ const MM_PER_INCH: i32 = 25;
 // |
 // .--------
 
-const TABLE_WIDTH: i32 = 930;
-const TABLE_HEIGHT: i32 = 523;
+const TABLE_WIDTH: f32 = 930.0;
+const TABLE_HEIGHT: f32 = 523.0;
 
-const GRID_SIZE: i32 = MM_PER_INCH;
+const GRID_SIZE: f32 = MM_PER_INCH;
 
 fn get_mini_edge_points(mini_center: Point) -> [Point; 360] {
     let mut points = [Point { x: 0.0, y: 0.0 }; 360];
-    let distance = MM_PER_INCH as f64 / 2.0;
+    let distance = MM_PER_INCH / 2.0;
     for i in 0..360 {
-        let angle = i as f64;
+        let angle = i as f32;
         let x = mini_center.x + distance * angle.to_radians().cos();
         let y = mini_center.y + distance * angle.to_radians().sin();
         points[i] = Point { x, y };
@@ -34,51 +34,46 @@ fn main() {
     let mut receivers = Vec::new();
 
     // top/bottom
-    for x in (MM_PER_INCH / 2..TABLE_WIDTH).step_by((MM_PER_INCH / 1) as usize) {
+    // top/bottom
+    let mut x = MM_PER_INCH / 2.0;
+    while x < TABLE_WIDTH {
         receivers.push(Receiver::new(
             TABLE_WIDTH,
             TABLE_HEIGHT,
-            20.0,
-            Point {
-                x: x as f64,
-                y: 0.0,
-            },
+            30.0,
+            Point { x, y: 0.0 },
             mini_tracker::Direction::Up,
         ));
         receivers.push(Receiver::new(
             TABLE_WIDTH,
             TABLE_HEIGHT,
-            20.0,
-            Point {
-                x: x as f64,
-                y: TABLE_HEIGHT as f64,
-            },
+            30.0,
+            Point { x, y: TABLE_HEIGHT },
             mini_tracker::Direction::Down,
         ));
+
+        x += MM_PER_INCH;
     }
 
     // left/right
-    for y in (MM_PER_INCH / 2..TABLE_HEIGHT).step_by((MM_PER_INCH / 1) as usize) {
+    let mut y = MM_PER_INCH / 2.0;
+    while y < TABLE_HEIGHT {
         receivers.push(Receiver::new(
             TABLE_WIDTH,
             TABLE_HEIGHT,
             20.0,
-            Point {
-                x: 0.0,
-                y: y as f64,
-            },
+            Point { x: 0.0, y },
             mini_tracker::Direction::Right,
         ));
         receivers.push(Receiver::new(
             TABLE_WIDTH,
             TABLE_HEIGHT,
             20.0,
-            Point {
-                x: TABLE_WIDTH as f64,
-                y: y as f64,
-            },
+            Point { x: TABLE_WIDTH, y },
             mini_tracker::Direction::Left,
         ));
+
+        y += MM_PER_INCH;
     }
 
     let table = Table::new(TABLE_WIDTH, TABLE_HEIGHT, receivers);
@@ -89,13 +84,13 @@ fn main() {
     let mut max_error = 0.0;
     let mut max_actual_error = 0.0;
 
-    for x in (GRID_SIZE / 2..TABLE_WIDTH - (GRID_SIZE / 2)).step_by(GRID_SIZE as usize) {
-        for y in (GRID_SIZE / 2..TABLE_HEIGHT - (GRID_SIZE / 2)).step_by(GRID_SIZE as usize) {
+    let mut x = GRID_SIZE / 2.0;
+    let mut y = GRID_SIZE / 2.0;
+
+    while x < TABLE_WIDTH - GRID_SIZE / 2.0 {
+        while y < TABLE_HEIGHT - GRID_SIZE / 2.0 {
             tot_locations += 1;
-            let mini_location = Point {
-                x: x as f64,
-                y: y as f64,
-            };
+            let mini_location = Point { x, y };
             let mut num_visible_receivers = 0;
             println!("mini_location: {:?}", mini_location);
             let mini_edge_points = get_mini_edge_points(mini_location);
@@ -122,7 +117,7 @@ fn main() {
             // }
 
             let (guessed_location, error) = table.get_location(&visible_receivers);
-            if guessed_location.distance(&mini_location) < GRID_SIZE as f64 {
+            if guessed_location.distance(&mini_location) < GRID_SIZE {
                 num_correct += 1;
             } else {
                 dbg!(mini_location, guessed_location);
@@ -136,7 +131,10 @@ fn main() {
             if error > max_error {
                 max_error = error;
             }
+            y += GRID_SIZE;
         }
+
+        x += GRID_SIZE;
     }
 
     println!("total: {tot_locations}, correct: {num_correct}, max calculated error: {max_error}, max actual error: {max_actual_error}");
