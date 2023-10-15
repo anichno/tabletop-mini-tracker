@@ -15,6 +15,18 @@ const TABLE_HEIGHT: i32 = 523;
 
 const GRID_SIZE: i32 = MM_PER_INCH;
 
+fn get_mini_edge_points(mini_center: Point) -> [Point; 360] {
+    let mut points = [Point { x: 0.0, y: 0.0 }; 360];
+    let distance = MM_PER_INCH as f64 / 2.0;
+    for i in 0..360 {
+        let angle = i as f64;
+        let x = mini_center.x + distance * angle.to_radians().cos();
+        let y = mini_center.y + distance * angle.to_radians().sin();
+        points[i] = Point { x, y };
+    }
+    points
+}
+
 fn main() {
     // Setup table
 
@@ -22,12 +34,11 @@ fn main() {
     let mut receivers = Vec::new();
 
     // top/bottom
-    for x in (MM_PER_INCH / 2..TABLE_WIDTH - (MM_PER_INCH / 2)).step_by((MM_PER_INCH / 2) as usize)
-    {
+    for x in (MM_PER_INCH / 2..TABLE_WIDTH).step_by((MM_PER_INCH / 1) as usize) {
         receivers.push(Receiver::new(
             TABLE_WIDTH,
             TABLE_HEIGHT,
-            40.0,
+            20.0,
             Point {
                 x: x as f64,
                 y: 0.0,
@@ -37,7 +48,7 @@ fn main() {
         receivers.push(Receiver::new(
             TABLE_WIDTH,
             TABLE_HEIGHT,
-            40.0,
+            20.0,
             Point {
                 x: x as f64,
                 y: TABLE_HEIGHT as f64,
@@ -47,12 +58,11 @@ fn main() {
     }
 
     // left/right
-    for y in (MM_PER_INCH / 2..TABLE_HEIGHT - (MM_PER_INCH / 2)).step_by((MM_PER_INCH / 1) as usize)
-    {
+    for y in (MM_PER_INCH / 2..TABLE_HEIGHT).step_by((MM_PER_INCH / 1) as usize) {
         receivers.push(Receiver::new(
             TABLE_WIDTH,
             TABLE_HEIGHT,
-            40.0,
+            20.0,
             Point {
                 x: 0.0,
                 y: y as f64,
@@ -62,7 +72,7 @@ fn main() {
         receivers.push(Receiver::new(
             TABLE_WIDTH,
             TABLE_HEIGHT,
-            40.0,
+            20.0,
             Point {
                 x: TABLE_WIDTH as f64,
                 y: y as f64,
@@ -87,10 +97,18 @@ fn main() {
                 y: y as f64,
             };
             let mut num_visible_receivers = 0;
-            // println!("mini_location: {:?}", mini_location);
+            println!("mini_location: {:?}", mini_location);
+            let mini_edge_points = get_mini_edge_points(mini_location);
             let mut visible_receivers = Vec::new();
             for receiver in table.receivers.iter() {
-                let can_see = receiver.can_see(&mini_location);
+                let mut can_see = false;
+                for point in &mini_edge_points {
+                    if receiver.can_see(point) {
+                        can_see = true;
+                        break;
+                    }
+                }
+                // let can_see = receiver.can_see(&mini_location);
                 if can_see {
                     num_visible_receivers += 1;
                 }

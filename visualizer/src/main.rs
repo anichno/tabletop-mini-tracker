@@ -34,7 +34,7 @@ fn place_receivers() -> Vec<Receiver> {
         receivers.push(Receiver::new(
             TABLE_WIDTH,
             TABLE_HEIGHT,
-            20.0,
+            30.0,
             Point {
                 x: x as f64,
                 y: 0.0,
@@ -44,7 +44,7 @@ fn place_receivers() -> Vec<Receiver> {
         receivers.push(Receiver::new(
             TABLE_WIDTH,
             TABLE_HEIGHT,
-            20.0,
+            30.0,
             Point {
                 x: x as f64,
                 y: TABLE_HEIGHT as f64,
@@ -58,7 +58,7 @@ fn place_receivers() -> Vec<Receiver> {
         receivers.push(Receiver::new(
             TABLE_WIDTH,
             TABLE_HEIGHT,
-            40.0,
+            20.0,
             Point {
                 x: 0.0,
                 y: y as f64,
@@ -68,7 +68,7 @@ fn place_receivers() -> Vec<Receiver> {
         receivers.push(Receiver::new(
             TABLE_WIDTH,
             TABLE_HEIGHT,
-            40.0,
+            20.0,
             Point {
                 x: TABLE_WIDTH as f64,
                 y: y as f64,
@@ -181,6 +181,16 @@ impl WindowHandler for Visualizer {
                 let (x2, y2) = (convert_x(x2), convert_y(y2));
                 graphics.draw_line((x1, y1), (x2, y2), 1.0, color);
 
+                if !self.showing_negative {
+                    let line = receiver.expanded_view_bound1;
+                    let (x1, y1) = (line.point1.x, line.point1.y);
+                    let (x1, y1) = (convert_x(x1), convert_y(y1));
+
+                    let (x2, y2) = (line.point2.x, line.point2.y);
+                    let (x2, y2) = (convert_x(x2), convert_y(y2));
+                    graphics.draw_line((x1, y1), (x2, y2), 1.0, speedy2d::color::Color::BLUE);
+                }
+
                 // line 2
                 let line = receiver.view_bound2;
                 let (x1, y1) = (line.point1.x, line.point1.y);
@@ -188,6 +198,16 @@ impl WindowHandler for Visualizer {
                 let (x2, y2) = (line.point2.x, line.point2.y);
                 let (x2, y2) = (convert_x(x2), convert_y(y2));
                 graphics.draw_line((x1, y1), (x2, y2), 1.0, color);
+
+                if !self.showing_negative {
+                    let line = receiver.expanded_view_bound2;
+                    let (x1, y1) = (line.point1.x, line.point1.y);
+                    let (x1, y1) = (convert_x(x1), convert_y(y1));
+
+                    let (x2, y2) = (line.point2.x, line.point2.y);
+                    let (x2, y2) = (convert_x(x2), convert_y(y2));
+                    graphics.draw_line((x1, y1), (x2, y2), 1.0, speedy2d::color::Color::BLUE);
+                }
             }
         }
     }
@@ -267,6 +287,11 @@ impl WindowHandler for Visualizer {
             Some(speedy2d::window::VirtualKeyCode::Space) => {
                 if let Some(idx) = self.active_receiver_idx {
                     println!("{:?}", self.table.receivers[idx]);
+                    if self.showing_negative {
+                        dbg!(&self.negative_intersect_checkpoints[idx]);
+                    } else {
+                        dbg!(&self.positive_intersect_checkpoints[idx + 1]);
+                    }
                 }
             }
             Some(speedy2d::window::VirtualKeyCode::Return) => {
@@ -300,14 +325,25 @@ fn get_point_checkpoints(
 
     let mut intersections: Vec<Point> = Vec::new();
 
-    for (receiver, _) in visible_receivers.iter().filter(|(_, v)| *v) {
+    for (receiver, _) in visible_receivers.iter() {
         for line in &bounding_lines {
-            if let Some(intersect) = line.intersection(&receiver.view_bound1) {
+            if let Some(intersect) = line.intersection(&receiver.expanded_view_bound1, true) {
                 if intersect.approx_ne(receiver.location, point_margin) {
                     intersections.push(intersect);
                 }
             }
-            if let Some(intersect) = line.intersection(&receiver.view_bound2) {
+            if let Some(intersect) = line.intersection(&receiver.expanded_view_bound2, true) {
+                if intersect.approx_ne(receiver.location, point_margin) {
+                    intersections.push(intersect);
+                }
+            }
+
+            if let Some(intersect) = line.intersection(&receiver.view_bound1, true) {
+                if intersect.approx_ne(receiver.location, point_margin) {
+                    intersections.push(intersect);
+                }
+            }
+            if let Some(intersect) = line.intersection(&receiver.view_bound2, true) {
                 if intersect.approx_ne(receiver.location, point_margin) {
                     intersections.push(intersect);
                 }
@@ -315,16 +351,19 @@ fn get_point_checkpoints(
         }
         intersections.push(receiver.location);
 
+        bounding_lines.push(receiver.expanded_view_bound1);
+        bounding_lines.push(receiver.expanded_view_bound2);
         bounding_lines.push(receiver.view_bound1);
         bounding_lines.push(receiver.view_bound2);
     }
+    dbg!(intersections.len());
 
     positive_checkpoints.push(intersections.clone());
 
     // for each receiver, if receiver can see mini, keep points it CAN see. if CANNOT see mini, keep points it CANNOT see
     for (receiver, mini_visible) in visible_receivers {
         if *mini_visible {
-            intersections.retain(|p| receiver.can_see(p));
+            intersections.retain(|p| receiver.can_see_estimated(p));
         } else {
         }
 
@@ -334,7 +373,7 @@ fn get_point_checkpoints(
     for (receiver, mini_visible) in visible_receivers {
         if *mini_visible {
         } else {
-            intersections.retain(|p| !receiver.can_see(p));
+            intersections.retain(|p| receiver.cannot_see(p));
         }
 
         negative_checkpoints.push(intersections.clone());
@@ -343,21 +382,61 @@ fn get_point_checkpoints(
     (positive_checkpoints, negative_checkpoints)
 }
 
+fn get_mini_edge_points(mini_center: Point) -> [Point; 360] {
+    let mut points = [Point { x: 0.0, y: 0.0 }; 360];
+    let distance = MM_PER_INCH as f64 / 2.0;
+    for i in 0..360 {
+        let angle = i as f64;
+        let x = mini_center.x + distance * angle.to_radians().cos();
+        let y = mini_center.y + distance * angle.to_radians().sin();
+        points[i] = Point { x, y };
+    }
+    points
+}
+
 fn main() {
     let receivers = place_receivers();
 
     let table = Table::new(TABLE_WIDTH, TABLE_HEIGHT, receivers);
 
-    let mini_location = Point { x: 37.0, y: 362.0 };
-
+    let mini_location = Point { x: 37.0, y: 137.0 };
+    let mini_edge_points = get_mini_edge_points(mini_location);
     let mut visible_receivers = Vec::new();
     for receiver in table.receivers.iter() {
-        let can_see = receiver.can_see(&mini_location);
+        let mut can_see = false;
+        for point in &mini_edge_points {
+            if receiver.can_see(point) {
+                can_see = true;
+                break;
+            }
+        }
         visible_receivers.push((receiver.clone(), can_see));
     }
 
     let (positive_intersect_checkpoints, negative_intersect_checkpoints) =
         get_point_checkpoints(&table, &visible_receivers);
+
+    // for normal library based calculation
+    let receiver_copies = table.receivers.clone();
+    let mut copied_visible_receivers = Vec::new();
+    for receiver in receiver_copies.iter() {
+        let mut can_see = false;
+        for point in &mini_edge_points {
+            if receiver.can_see(point) {
+                can_see = true;
+                break;
+            }
+        }
+        copied_visible_receivers.push((receiver, can_see));
+    }
+
+    let (estimated_location, location_error) = table.get_location(&copied_visible_receivers);
+    let actual_error = mini_location.distance(&estimated_location);
+    println!("Actual location: {:?}", mini_location);
+    println!(
+        "Estimated location: {:?} with estimated error {}, actual error {}",
+        estimated_location, location_error, actual_error
+    );
 
     let window = speedy2d::Window::new_centered(
         "Mini Tracker Visualizer",

@@ -57,6 +57,9 @@ pub struct Receiver {
     pub facing: Direction,
     pub view_bound1: Line, // guaranteed to be longer than the bounds of the table
     pub view_bound2: Line,
+    pub expanded_view_bound1: Line,
+    pub expanded_view_bound2: Line,
+    pub expanded_view_location: Point,
 }
 
 impl Table {
@@ -119,14 +122,25 @@ impl Table {
 
         let mut intersections: Vec<Point> = Vec::new();
 
-        for (receiver, _) in receivers.iter().filter(|(_, v)| *v) {
+        for (receiver, _) in receivers.iter() {
             for line in &bounding_lines {
-                if let Some(intersect) = line.intersection(&receiver.view_bound1) {
+                if let Some(intersect) = line.intersection(&receiver.expanded_view_bound1, true) {
                     if intersect.approx_ne(receiver.location, point_margin) {
                         intersections.push(intersect);
                     }
                 }
-                if let Some(intersect) = line.intersection(&receiver.view_bound2) {
+                if let Some(intersect) = line.intersection(&receiver.expanded_view_bound2, true) {
+                    if intersect.approx_ne(receiver.location, point_margin) {
+                        intersections.push(intersect);
+                    }
+                }
+
+                if let Some(intersect) = line.intersection(&receiver.view_bound1, true) {
+                    if intersect.approx_ne(receiver.location, point_margin) {
+                        intersections.push(intersect);
+                    }
+                }
+                if let Some(intersect) = line.intersection(&receiver.view_bound2, true) {
                     if intersect.approx_ne(receiver.location, point_margin) {
                         intersections.push(intersect);
                     }
@@ -134,6 +148,8 @@ impl Table {
             }
             intersections.push(receiver.location);
 
+            bounding_lines.push(receiver.expanded_view_bound1);
+            bounding_lines.push(receiver.expanded_view_bound2);
             bounding_lines.push(receiver.view_bound1);
             bounding_lines.push(receiver.view_bound2);
         }
@@ -142,9 +158,18 @@ impl Table {
         for (receiver, mini_visible) in receivers {
             // dbg!(intersections.len());
             if *mini_visible {
-                intersections.retain(|p| receiver.can_see(p));
+                intersections.retain(|p| receiver.can_see_estimated(p));
             } else {
                 // intersections.retain(|p| !receiver.can_see(p));
+            }
+        }
+
+        for (receiver, mini_visible) in receivers {
+            // dbg!(intersections.len());
+            if *mini_visible {
+                // intersections.retain(|p| receiver.can_see(p));
+            } else if intersections.len() > 1 {
+                intersections.retain(|p| receiver.cannot_see(p));
             }
         }
 
@@ -160,6 +185,7 @@ impl Table {
         x_sum /= intersections.len() as f64;
         y_sum /= intersections.len() as f64;
 
+        // TODO: This error calc isn't quite right. We know that the bounds of the mini are within the polygon described by all remaining points
         // find the max distance from the centroid
         let mut max_distance = 0.0;
         for point in &intersections {
@@ -196,53 +222,67 @@ impl Receiver {
         let too_long1 = Line::new(location, far_point1);
         let too_long2 = Line::new(location, far_point2);
 
+        let expanded_view_bound1 = too_long1.parallel_line(25.4, true);
+        let expanded_view_bound2 = too_long2.parallel_line(25.4, false);
+        let expanded_view_location = expanded_view_bound1
+            .intersection(&expanded_view_bound2, false)
+            .unwrap();
+
         Self {
             view_angle,
             location,
             facing,
             view_bound1: too_long1,
             view_bound2: too_long2,
+            expanded_view_bound1,
+            expanded_view_bound2,
+            expanded_view_location,
         }
     }
 
     pub fn can_see(&self, point: &Point) -> bool {
-        // // move receiver to origin and do corresponding move to point
-        // // can assume location is always positive Q1
-        // let moved_point = Point {
-        //     x: point.x - self.location.x,
-        //     y: point.y - self.location.y,
-        // };
-
-        // // rotate so view angle is looking to the right
-        // let rotate_rad = match self.facing {
-        //     Direction::Up => -90.0 * (std::f64::consts::PI / 180.0),
-        //     Direction::Down => 90.0 * (std::f64::consts::PI / 180.0),
-        //     Direction::Left => 180.0 * (std::f64::consts::PI / 180.0),
-        //     Direction::Right => 0.0 * (std::f64::consts::PI / 180.0),
-        // };
-
-        // let rotated_point = moved_point.rotate_around_origin(rotate_rad);
-
-        // // check if point angle is within fov
-        // let angle = rotated_point.angle_from_origin();
         let mut angle = self.location.angle(point);
-        // if angle < 0.0 {
-        //     angle = 360.0 + angle;
-        // }
 
         match self.facing {
             Direction::Up | Direction::Left | Direction::Down => {
                 if angle < 0.0 {
                     angle = 360.0 + angle;
                 }
-                angle >= self.facing.to_degrees() - (self.view_angle / 2.0)
-                    && angle <= self.facing.to_degrees() + (self.view_angle / 2.0)
+                angle >= self.facing.to_degrees() - (self.view_angle / 2.0) - 0.01
+                    && angle <= self.facing.to_degrees() + (self.view_angle / 2.0) + 0.01
             }
-            Direction::Right => angle.abs() <= (self.view_angle / 2.0),
+            Direction::Right => angle.abs() <= (self.view_angle / 2.0) + 0.01,
         }
+    }
 
-        // let viewer = self.facing.to_degrees();
-        // angle <= (self.view_angle / 2.0) && angle >= -(self.view_angle / 2.0)
+    pub fn can_see_estimated(&self, point: &Point) -> bool {
+        let mut angle = self.expanded_view_location.angle(point);
+
+        match self.facing {
+            Direction::Up | Direction::Left | Direction::Down => {
+                if angle < 0.0 {
+                    angle = 360.0 + angle;
+                }
+                angle >= self.facing.to_degrees() - (self.view_angle / 2.0) - 0.01
+                    && angle <= self.facing.to_degrees() + (self.view_angle / 2.0) + 0.01
+            }
+            Direction::Right => angle.abs() <= (self.view_angle / 2.0) + 0.01,
+        }
+    }
+
+    pub fn cannot_see(&self, point: &Point) -> bool {
+        let mut angle = self.location.angle(point);
+
+        match self.facing {
+            Direction::Up | Direction::Left | Direction::Down => {
+                if angle < 0.0 {
+                    angle = 360.0 + angle;
+                }
+                !(angle >= self.facing.to_degrees() - (self.view_angle / 2.0) + 0.01
+                    && angle <= self.facing.to_degrees() + (self.view_angle / 2.0) - 0.01)
+            }
+            Direction::Right => !(angle.abs() <= (self.view_angle / 2.0) - 0.01),
+        }
     }
 }
 
@@ -292,7 +332,7 @@ impl Line {
         }
     }
 
-    pub fn intersection(&self, other: &Self) -> Option<Point> {
+    pub fn intersection(&self, other: &Self, on_segments_only: bool) -> Option<Point> {
         if self.m == other.m {
             // Parallel or coincident
             return None;
@@ -314,23 +354,49 @@ impl Line {
         // let x = x.round() as i32;
         // let y = y.round() as i32;
 
-        // check if on segment 1
-        if x < self.point1.x.min(self.point2.x) || x > self.point1.x.max(self.point2.x) {
-            return None;
-        }
-        if y < self.point1.y.min(self.point2.y) || y > self.point1.y.max(self.point2.y) {
-            return None;
-        }
+        if on_segments_only {
+            // check if on segment 1
+            if x < self.point1.x.min(self.point2.x) || x > self.point1.x.max(self.point2.x) {
+                return None;
+            }
+            if y < self.point1.y.min(self.point2.y) || y > self.point1.y.max(self.point2.y) {
+                return None;
+            }
 
-        // check if on segment 2
-        if x < other.point1.x.min(other.point2.x) || x > other.point1.x.max(other.point2.x) {
-            return None;
-        }
-        if y < other.point1.y.min(other.point2.y) || y > other.point1.y.max(other.point2.y) {
-            return None;
+            // check if on segment 2
+            if x < other.point1.x.min(other.point2.x) || x > other.point1.x.max(other.point2.x) {
+                return None;
+            }
+            if y < other.point1.y.min(other.point2.y) || y > other.point1.y.max(other.point2.y) {
+                return None;
+            }
         }
 
         Some(Point { x, y })
+    }
+
+    pub fn parallel_line(&self, distance: f64, left: bool) -> Line {
+        let mut angle = self.point1.angle(&self.point2);
+        if angle < 0.0 {
+            angle = 360.0 + angle;
+        }
+        if left {
+            angle += 90.0
+        } else {
+            angle -= 90.0
+        }
+
+        let rad_angle = angle.to_radians();
+        let new_point1 = Point {
+            x: (distance * rad_angle.cos()) + self.point1.x,
+            y: (distance * rad_angle.sin()) + self.point1.y,
+        };
+        let new_point2 = Point {
+            x: (distance * rad_angle.cos()) + self.point2.x,
+            y: (distance * rad_angle.sin()) + self.point2.y,
+        };
+
+        Line::new(new_point1, new_point2)
     }
 }
 
@@ -441,7 +507,7 @@ mod test {
         let p2 = Point { x: 7.0, y: 8.0 };
         let line2 = Line::new(p1, p2);
 
-        let intersect = line1.intersection(&line2).unwrap();
+        let intersect = line1.intersection(&line2, true).unwrap();
         assert_approx_eq!(f64, intersect.x, 3.09302, epsilon = 0.00001);
         assert_approx_eq!(f64, intersect.y, 1.16279, epsilon = 0.00001);
 
@@ -453,7 +519,7 @@ mod test {
         let p2 = Point { x: 200.0, y: 0.0 };
         let line2 = Line::new(p1, p2);
 
-        let intersect = line1.intersection(&line2).unwrap();
+        let intersect = line1.intersection(&line2, true).unwrap();
         assert_eq!(intersect.x, 100.0);
         assert_eq!(intersect.y, 100.0);
     }
@@ -533,14 +599,14 @@ mod test {
         for receiver in &table.receivers {
             let mut intersections = 0;
             for line in &bounding_lines {
-                if let Some(intersect) = line.intersection(&receiver.view_bound1) {
+                if let Some(intersect) = line.intersection(&receiver.view_bound1, true) {
                     // dbg!(intersect);
                     if intersect.approx_ne(receiver.location, point_margin) {
                         // dbg!(line);
                         intersections += 1;
                     }
                 }
-                if let Some(intersect) = line.intersection(&receiver.view_bound2) {
+                if let Some(intersect) = line.intersection(&receiver.view_bound2, true) {
                     // dbg!(intersect);
                     if intersect.approx_ne(receiver.location, point_margin) {
                         // dbg!(line);
