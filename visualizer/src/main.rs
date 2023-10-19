@@ -3,7 +3,7 @@ use mini_tracker::{self, Point, Receiver, Table};
 use speedy2d::{shape::Rectangle, window::WindowHandler};
 
 // 1 px == 1 mm
-const PX_PER_MM: f32 = 3.0;
+const PX_PER_MM: f32 = 2.0;
 // 25mm == ~1 in
 const MM_PER_INCH: f32 = 25.4;
 
@@ -47,7 +47,7 @@ fn place_receivers() -> Vec<Receiver> {
             mini_tracker::Direction::Down,
         ));
 
-        x += MM_PER_INCH;
+        x += MM_PER_INCH / 1.0;
     }
 
     // left/right
@@ -68,8 +68,10 @@ fn place_receivers() -> Vec<Receiver> {
             mini_tracker::Direction::Left,
         ));
 
-        y += MM_PER_INCH;
+        y += MM_PER_INCH / 1.0;
     }
+
+    dbg!(receivers.len());
 
     receivers
 }
@@ -299,44 +301,51 @@ fn get_point_checkpoints(
 
     // for each receiver that can see the mini, add points for all intersections created by view lines, then remove any points which cannot be seen by this receiver
     let mut bounding_lines = vec![
-        table.table_top,
-        table.table_bottom,
-        table.table_left,
-        table.table_right,
+        (table.table_top, false),
+        (table.table_bottom, false),
+        (table.table_left, false),
+        (table.table_right, false),
     ];
 
     let mut intersections: Vec<Point> = Vec::new();
 
-    for (receiver, _) in visible_receivers.iter() {
-        for line in &bounding_lines {
-            if let Some(intersect) = line.intersection(&receiver.expanded_view_bound1, true) {
-                if intersect.approx_ne(receiver.location, point_margin) {
-                    intersections.push(intersect);
+    for (receiver, can_see) in visible_receivers.iter() {
+        for (line, v) in &bounding_lines {
+            if *can_see || *v {
+                if let Some(intersect) = line.intersection(&receiver.expanded_view_bound1, true) {
+                    if intersect.approx_ne(receiver.location, point_margin) {
+                        intersections.push(intersect);
+                    }
                 }
-            }
-            if let Some(intersect) = line.intersection(&receiver.expanded_view_bound2, true) {
-                if intersect.approx_ne(receiver.location, point_margin) {
-                    intersections.push(intersect);
+                if let Some(intersect) = line.intersection(&receiver.expanded_view_bound2, true) {
+                    if intersect.approx_ne(receiver.location, point_margin) {
+                        intersections.push(intersect);
+                    }
                 }
-            }
 
-            if let Some(intersect) = line.intersection(&receiver.view_bound1, true) {
-                if intersect.approx_ne(receiver.location, point_margin) {
-                    intersections.push(intersect);
+                if let Some(intersect) = line.intersection(&receiver.view_bound1, true) {
+                    if intersect.approx_ne(receiver.location, point_margin) {
+                        intersections.push(intersect);
+                    }
                 }
-            }
-            if let Some(intersect) = line.intersection(&receiver.view_bound2, true) {
-                if intersect.approx_ne(receiver.location, point_margin) {
-                    intersections.push(intersect);
+                if let Some(intersect) = line.intersection(&receiver.view_bound2, true) {
+                    if intersect.approx_ne(receiver.location, point_margin) {
+                        intersections.push(intersect);
+                    }
                 }
             }
         }
-        intersections.push(receiver.location);
 
-        bounding_lines.push(receiver.expanded_view_bound1);
-        bounding_lines.push(receiver.expanded_view_bound2);
-        bounding_lines.push(receiver.view_bound1);
-        bounding_lines.push(receiver.view_bound2);
+        if *can_see {
+            intersections.push(receiver.location);
+            bounding_lines.push((receiver.expanded_view_bound1, *can_see));
+            bounding_lines.push((receiver.expanded_view_bound2, *can_see));
+        } else {
+            bounding_lines.push((receiver.view_bound1, *can_see));
+            bounding_lines.push((receiver.view_bound2, *can_see));
+        }
+
+        // }
     }
     dbg!(intersections.len());
 
@@ -378,7 +387,7 @@ fn main() {
 
     let table = Table::new(TABLE_WIDTH, TABLE_HEIGHT, receivers);
 
-    let mini_location = Point { x: 37.0, y: 137.0 };
+    let mini_location = Point { x: 307.0, y: 137.0 };
     let mini_edge_points = get_mini_edge_points(mini_location);
     let mut visible_receivers = Vec::new();
     for receiver in table.receivers.iter() {

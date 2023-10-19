@@ -123,10 +123,10 @@ impl Table {
 
         // for each receiver that can see the mini, add points for all intersections created by view lines, then remove any points which cannot be seen by this receiver
         let mut bounding_lines = vec![
-            self.table_top,
-            self.table_bottom,
-            self.table_left,
-            self.table_right,
+            (self.table_top, false),
+            (self.table_bottom, false),
+            (self.table_left, false),
+            (self.table_right, false),
         ];
 
         let mut intersections: Vec<Point> = Vec::new();
@@ -138,8 +138,9 @@ impl Table {
             .collect();
 
         // Note: by testing each point as we go against receivers, we can save a lot of memory for really not much of a performance hit
-        for (receiver, _) in receivers.iter() {
-            for line in &bounding_lines {
+        for (receiver, can_see) in receivers.iter() {
+            for (line, v) in &bounding_lines {
+                // if *can_see || *v {
                 if let Some(intersect) = line.intersection(&receiver.expanded_view_bound1, true) {
                     if self.receivers_can_see_estimated(&can_see_receivers, &intersect) {
                         intersections.push(intersect);
@@ -165,15 +166,18 @@ impl Table {
                         }
                     }
                 }
+                // }
             }
             if self.receivers_can_see_estimated(&can_see_receivers, &receiver.location) {
                 intersections.push(receiver.location);
             }
 
-            bounding_lines.push(receiver.expanded_view_bound1);
-            bounding_lines.push(receiver.expanded_view_bound2);
-            bounding_lines.push(receiver.view_bound1);
-            bounding_lines.push(receiver.view_bound2);
+            // if *can_see {
+            bounding_lines.push((receiver.expanded_view_bound1, *can_see));
+            bounding_lines.push((receiver.expanded_view_bound2, *can_see));
+            bounding_lines.push((receiver.view_bound1, *can_see));
+            bounding_lines.push((receiver.view_bound2, *can_see));
+            // }
         }
 
         for (receiver, _) in receivers.iter().filter(|(_, v)| !*v) {
