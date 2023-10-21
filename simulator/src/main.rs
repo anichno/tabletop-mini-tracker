@@ -1,5 +1,7 @@
 use mini_tracker::{self, Point, Receiver, Table};
 
+// mod receiver_placements;
+
 // 1 px == 1 mm
 // 25mm == ~1 in
 const MM_PER_INCH: f32 = 25.4;
