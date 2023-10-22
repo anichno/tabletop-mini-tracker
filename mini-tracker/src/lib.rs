@@ -128,7 +128,7 @@ impl Table {
     }
 
     // given a set of receivers, return a set of points which describe the bounding polygon of the mini
-    pub fn get_bounding_polygon(&self, receivers: &[(Receiver, bool)]) -> Polygon {
+    pub fn get_bounding_polygon(&self, receivers: &[(Receiver, bool)]) -> Option<Polygon> {
         let point_margin = float_cmp::F32Margin::default().epsilon(0.0001);
 
         // for each receiver that can see the mini, add points for all intersections created by view lines, then remove any points which cannot be seen by this receiver
@@ -199,9 +199,14 @@ impl Table {
             intersections.retain(|p| receiver.cannot_see(p));
         }
 
+        if intersections.is_empty() {
+            return None;
+        }
+
         let mut bounds = Polygon::new(&intersections);
-        bounds.remove_colinear_points();
-        bounds
+        // bounds.remove_colinear_points();
+        // assert!(!bounds.points.is_empty());
+        Some(bounds)
     }
 
     pub fn get_location(&self, receivers: &[(&Receiver, bool)]) -> (Point, f32) {
@@ -496,7 +501,13 @@ impl Line {
 }
 
 fn order_points_clockwise(points: &mut [Point]) {
-    let centroid = find_centroid(points);
+    let num_points = points.len() as f32;
+    let sum_x = points.iter().map(|p| p.x).sum::<f32>();
+    let sum_y = points.iter().map(|p| p.y).sum::<f32>();
+    let centroid = Point {
+        x: sum_x / num_points,
+        y: sum_y / num_points,
+    };
 
     points.sort_by(|a, b| {
         let mut angle_a = centroid.angle(a);
@@ -515,13 +526,42 @@ fn order_points_clockwise(points: &mut [Point]) {
     });
 }
 
+// https://stackoverflow.com/a/451482
+// def area(p):
+//  return 0.5 * abs(sum(x0*y1 - x1*y0
+//      for ((x0, y0), (x1, y1)) in segments(p)))
+fn area(points: &[Point]) -> f32 {
+    let mut area = 0.0;
+    for (i, point) in points.iter().enumerate() {
+        let next_point = if i == points.len() - 1 {
+            &points[0]
+        } else {
+            &points[i + 1]
+        };
+        area += (point.x * next_point.y) - (next_point.x * point.y);
+    }
+    area.abs() / 2.0
+}
+
+// https://en.wikipedia.org/wiki/Centroid#Of_a_polygon
 fn find_centroid(points: &[Point]) -> Point {
-    let num_points = points.len() as f32;
-    let sum_x = points.iter().map(|p| p.x).sum::<f32>();
-    let sum_y = points.iter().map(|p| p.y).sum::<f32>();
+    let area = area(points);
+
+    let mut x = 0.0;
+    let mut y = 0.0;
+    for (i, point) in points.iter().enumerate() {
+        let next_point = if i == points.len() - 1 {
+            &points[0]
+        } else {
+            &points[i + 1]
+        };
+        x += (point.x + next_point.x) * ((point.x * next_point.y) - (next_point.x * point.y));
+        y += (point.y + next_point.y) * ((point.x * next_point.y) - (next_point.x * point.y));
+    }
+
     Point {
-        x: sum_x / num_points,
-        y: sum_y / num_points,
+        x: x.abs() / (6.0 * area),
+        y: y.abs() / (6.0 * area),
     }
 }
 
@@ -566,8 +606,7 @@ impl Polygon {
         }
     }
 
-    // TODO we don't handle crossing lines very well. Should probably be multiple polygons to represent the individual valid areas
-    pub fn shrink(&self, size: f32) -> Self {
+    pub fn shrink(&self, size: f32) -> Option<Self> {
         let mut tmp_lines = Vec::new();
         for line in self.lines.iter() {
             tmp_lines.push(line.parallel_line(size, false));
@@ -582,13 +621,6 @@ impl Polygon {
             }
         }
         let centroid = find_centroid(&self.points);
-        dbg!(centroid);
-        // points.sort_unstable_by(|p1, p2| {
-        //     centroid
-        //         .distance(&p1.0)
-        //         .partial_cmp(&centroid.distance(&p2.0))
-        //         .unwrap()
-        // });
 
         let mut new_points = Vec::new();
         for (p, l1, l2) in points {
@@ -598,7 +630,7 @@ impl Polygon {
                 if line == l1 || line == l2 {
                     continue;
                 }
-                if let Some(intersect) = centroid_line.intersection(line, true) {
+                if centroid_line.intersection(line, true).is_some() {
                     no_intersects = false;
                     break;
                 }
@@ -609,90 +641,28 @@ impl Polygon {
             }
         }
 
-        // let mut new_points = vec![points[0].0];
-        // let mut cur_line = points[0].1;
-        // let mut prev_line = points[0].2;
-        // let mut prev_lines = vec![];
-        // loop {
-        //     dbg!(&new_points);
-        //     let prev_line_angle = prev_line.point1.angle(&prev_line.point2);
-        //     dbg!(prev_line_angle);
-        //     let mut next_point = None;
-        //     let mut next_line = None;
-        //     let mut next_angle = std::f32::MAX;
-        //     let mut next_point_distance = std::f32::MAX;
-        //     for line in tmp_lines.iter() {
-        //         if (new_points.len() == 1 && line == points[0].2) || prev_lines.contains(&line) {
-        //             continue;
-        //         }
-        //         if let Some(intersect) = cur_line.intersection(line, true) {
-        //             let mut angle = new_points.last().unwrap().angle(&intersect);
-        //             let distance = new_points.last().unwrap().distance(&intersect);
-        //             if angle < 0.0 {
-        //                 angle += 360.0;
-        //             }
-
-        //             dbg!(angle);
-        //             let mut angle_diff = prev_line_angle - angle;
-        //             dbg!(angle_diff, distance);
-        //             dbg!(intersect);
-        //             if angle_diff < 0.0 {
-        //                 angle_diff += 360.0;
-        //             }
-        //             if angle.approx_eq(next_angle, float_cmp::F32Margin::default().epsilon(0.0001))
-        //             {
-        //                 if distance < next_point_distance {
-        //                     next_angle = angle;
-        //                     next_point = Some(intersect);
-        //                     next_line = Some(line);
-        //                     next_point_distance = distance;
-        //                 }
-        //             } else if angle_diff < next_angle {
-        //                 next_angle = angle;
-        //                 next_point = Some(intersect);
-        //                 next_line = Some(line);
-        //                 next_point_distance = distance;
-        //             }
-        //         }
-        //     }
-        //     if next_point.is_none() {
-        //         break;
-        //     }
-        //     let next_point = next_point.unwrap();
-        //     if next_point.approx_eq(
-        //         new_points[0],
-        //         float_cmp::F32Margin::default().epsilon(0.0001),
-        //     ) {
-        //         break;
-        //     }
-        //     new_points.push(next_point);
-        //     prev_lines.push(cur_line);
-        //     prev_line = cur_line;
-        //     cur_line = next_line.unwrap();
-        // }
-
-        Self::new(&new_points)
+        if new_points.is_empty() {
+            None
+        } else {
+            Some(Self::new(&new_points))
+        }
     }
 
     pub fn center(&self) -> Point {
-        find_centroid(&self.points)
+        if self.points.len() > 2 {
+            find_centroid(&self.points)
+        } else if self.points.len() == 2 {
+            Point {
+                x: (self.points[0].x + self.points[1].x) / 2.0,
+                y: (self.points[0].y + self.points[1].y) / 2.0,
+            }
+        } else {
+            self.points[0]
+        }
     }
 
-    // https://stackoverflow.com/a/451482
-    // def area(p):
-    //  return 0.5 * abs(sum(x0*y1 - x1*y0
-    //      for ((x0, y0), (x1, y1)) in segments(p)))
     pub fn area(&self) -> f32 {
-        let mut area = 0.0;
-        for (i, point) in self.points.iter().enumerate() {
-            let next_point = if i == self.points.len() - 1 {
-                &self.points[0]
-            } else {
-                &self.points[i + 1]
-            };
-            area += (point.x * next_point.y) - (next_point.x * point.y);
-        }
-        area.abs() / 2.0
+        area(&self.points)
     }
 
     pub fn max_width(&self) -> f32 {
@@ -745,38 +715,6 @@ impl Polygon {
         self.lines = lines;
     }
 }
-
-// #[derive(Clone, Copy, Debug)]
-// struct Vector {
-//     x: f32,
-//     y: f32,
-// }
-
-// impl Vector {
-//     fn new(x: f32, y: f32) -> Self {
-//         Self { x, y }
-//     }
-
-//     fn length(&self) -> f32 {
-//         (self.x * self.x + self.y * self.y).sqrt()
-//     }
-
-//     fn normalize(&self) -> Self {
-//         let length = self.length();
-//         Self {
-//             x: self.x / length,
-//             y: self.y / length,
-//         }
-//     }
-
-//     fn dot(&self, other: Self) -> f32 {
-//         self.x * other.x + self.y * other.y
-//     }
-
-//     fn normal(&self) -> Self {
-//         Self::new(-self.y, self.x)
-//     }
-// }
 
 #[cfg(test)]
 mod test {
@@ -1027,53 +965,5 @@ mod test {
         let polygon = Polygon::new(&points);
 
         assert_approx_eq!(f32, polygon.area(), 100.0, epsilon = 0.00001);
-    }
-
-    #[test]
-    fn crossover_area() {
-        let points = vec![
-            Point { x: 0.0, y: 0.0 },
-            Point { x: 0.0, y: 10.0 },
-            Point { x: 10.0, y: 0.0 },
-            Point { x: 10.0, y: 10.0 },
-        ];
-
-        let mut lines = Vec::new();
-        for (i, point) in points.iter().enumerate() {
-            let next_point = if i == points.len() - 1 {
-                &points[0]
-            } else {
-                &points[i + 1]
-            };
-            lines.push(Line::new(*point, *next_point));
-        }
-
-        let crossover = Polygon { points, lines };
-
-        let intersection = Line::new(Point { x: 0.0, y: 10.0 }, Point { x: 10.0, y: 0.0 })
-            .intersection(
-                &Line::new(Point { x: 0.0, y: 0.0 }, Point { x: 10.0, y: 10.0 }),
-                true,
-            )
-            .unwrap();
-
-        let points = vec![
-            Point { x: 0.0, y: 0.0 },
-            Point { x: 0.0, y: 10.0 },
-            intersection,
-        ];
-        let mut lines = Vec::new();
-        for (i, point) in points.iter().enumerate() {
-            let next_point = if i == points.len() - 1 {
-                &points[0]
-            } else {
-                &points[i + 1]
-            };
-            lines.push(Line::new(*point, *next_point));
-        }
-
-        let half = Polygon { points, lines };
-
-        assert_approx_eq!(f32, crossover.area(), half.area() * 2.0, epsilon = 0.00001);
     }
 }

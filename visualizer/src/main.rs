@@ -14,8 +14,8 @@ const MM_PER_INCH: f32 = 25.4;
 // |
 // .--------
 
-const TABLE_WIDTH: f32 = 930.0;
-const TABLE_HEIGHT: f32 = 523.0;
+const TABLE_WIDTH: f32 = 930.0 + 2.0 * MM_PER_INCH;
+const TABLE_HEIGHT: f32 = 523.0 + 2.0 * MM_PER_INCH;
 
 const RECEIVER_SIZE: f32 = 2.5 * PX_PER_MM;
 
@@ -27,52 +27,52 @@ fn convert_x(x: f32) -> f32 {
     x * PX_PER_MM
 }
 
-fn place_receivers() -> Vec<Receiver> {
+fn place_vertical_receivers(view_angle: f32, receivers_per_mm: f32) -> Vec<Receiver> {
     let mut receivers = Vec::new();
-
-    // top/bottom
-    let mut x = MM_PER_INCH / 2.0;
-    while x < TABLE_WIDTH {
-        receivers.push(Receiver::new(
-            TABLE_WIDTH,
-            TABLE_HEIGHT,
-            30.0,
-            Point { x, y: 0.0 },
-            mini_tracker::Direction::Up,
-        ));
-        receivers.push(Receiver::new(
-            TABLE_WIDTH,
-            TABLE_HEIGHT,
-            30.0,
-            Point { x, y: TABLE_HEIGHT },
-            mini_tracker::Direction::Down,
-        ));
-
-        x += MM_PER_INCH / 1.0;
-    }
-
-    // left/right
     let mut y = MM_PER_INCH / 2.0;
     while y < TABLE_HEIGHT {
         receivers.push(Receiver::new(
             TABLE_WIDTH,
             TABLE_HEIGHT,
-            20.0,
+            view_angle,
             Point { x: 0.0, y },
             mini_tracker::Direction::Right,
         ));
         receivers.push(Receiver::new(
             TABLE_WIDTH,
             TABLE_HEIGHT,
-            20.0,
+            view_angle,
             Point { x: TABLE_WIDTH, y },
             mini_tracker::Direction::Left,
         ));
 
-        y += MM_PER_INCH / 1.0;
+        y += MM_PER_INCH / receivers_per_mm;
     }
 
-    dbg!(receivers.len());
+    receivers
+}
+
+fn place_horizontal_receivers(view_angle: f32, receivers_per_mm: f32) -> Vec<Receiver> {
+    let mut receivers = Vec::new();
+    let mut x = MM_PER_INCH / 2.0;
+    while x < TABLE_WIDTH {
+        receivers.push(Receiver::new(
+            TABLE_WIDTH,
+            TABLE_HEIGHT,
+            view_angle,
+            Point { x, y: 0.0 },
+            mini_tracker::Direction::Up,
+        ));
+        receivers.push(Receiver::new(
+            TABLE_WIDTH,
+            TABLE_HEIGHT,
+            view_angle,
+            Point { x, y: TABLE_HEIGHT },
+            mini_tracker::Direction::Down,
+        ));
+
+        x += MM_PER_INCH / receivers_per_mm;
+    }
 
     receivers
 }
@@ -88,11 +88,20 @@ fn get_mini_edge_points(mini_center: Point) -> [Point; 360] {
     points
 }
 fn main() {
-    let receivers = place_receivers();
+    let vert_density = 3.0;
+    let horiz_density = 2.0;
+    let vert_view_angle = 30.0;
+    let horiz_view_angle = 40.0;
+
+    let mut receivers = place_horizontal_receivers(horiz_view_angle, horiz_density);
+    receivers.append(&mut place_vertical_receivers(vert_view_angle, vert_density));
 
     let table = Table::new(TABLE_WIDTH, TABLE_HEIGHT, receivers);
 
-    let mini_location = Point { x: 37.0, y: 137.0 };
+    let mini_location = Point {
+        x: 63.5,
+        y: 292.09998,
+    };
 
     let mini_edge_points = get_mini_edge_points(mini_location);
     let mut visible_receivers = Vec::new();

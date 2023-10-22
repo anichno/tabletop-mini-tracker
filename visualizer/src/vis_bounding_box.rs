@@ -87,9 +87,9 @@ impl WindowHandler for Visualizer {
 }
 
 pub fn run(table: Table, mini_location: Point, visible_receivers: Vec<(Receiver, bool)>) {
-    let bounding_polygon = table.get_bounding_polygon(&&visible_receivers[..]);
+    let bounding_polygon = table.get_bounding_polygon(&&visible_receivers[..]).unwrap();
     let shrink_lines = bounding_polygon.get_shrink_lines(25.4 / 2.0);
-    let bounding_polygon_centered = bounding_polygon.shrink(25.4 / 2.0);
+    let bounding_polygon_centered = bounding_polygon.shrink(25.4 / 2.0).unwrap();
     dbg!(&bounding_polygon_centered.points);
     dbg!(bounding_polygon.points.len());
     dbg!(bounding_polygon_centered.points.len());
@@ -103,6 +103,11 @@ pub fn run(table: Table, mini_location: Point, visible_receivers: Vec<(Receiver,
         "max possible error: {}",
         bounding_polygon_centered.max_width()
     );
+
+    // println!(
+    //     "estimated position: {:?}",
+    //     bounding_polygon_centered.center()
+    // );
 
     let window = speedy2d::Window::new_centered(
         "Mini Tracker Visualizer",

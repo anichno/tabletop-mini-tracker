@@ -1,3 +1,9 @@
 [workspace]
-
-members = ["simulator", "mini-mount", "mini-tracker", "visualizer"]
+resolver = "2"
+members = [
+    "simulator",
+    "mini-mount",
+    "mini-tracker",
+    "visualizer",
+    "find_worst_case",
+]
