@@ -147,19 +147,19 @@ fn run_test(
             //     horiz_view_angle
             // );
             let bounding_polygon = table.get_bounding_polygon(&visible_receivers[..]).unwrap();
-            let Some(shrink_polygon) = bounding_polygon.shrink(25.4 / 2.0) else {
-                return TestResult {
-                    total_receivers,
-                    all_correct: false,
-                    avg_area: avg_area / tot_locations as f32,
-                    avg_error: avg_error / tot_locations as f32,
-                    max_area,
-                    max_error,
-                };
-            };
-            let guessed_location = shrink_polygon.center();
-            let error = shrink_polygon.max_width();
-            let area = shrink_polygon.area();
+            // let Some(shrink_polygon) = bounding_polygon.shrink(25.4 / 2.0) else {
+            //     return TestResult {
+            //         total_receivers,
+            //         all_correct: false,
+            //         avg_area: avg_area / tot_locations as f32,
+            //         avg_error: avg_error / tot_locations as f32,
+            //         max_area,
+            //         max_error,
+            //     };
+            // };
+            let guessed_location = bounding_polygon.center();
+            let error = bounding_polygon.max_width();
+            let area = bounding_polygon.area();
             avg_area += area;
             avg_error += error;
 
@@ -208,5 +208,5 @@ fn run_test(
 }
 
 fn main() {
-    println!("{:?}", run_test(3.0, 2.0, 30.0, 40.0));
+    println!("{:?}", run_test(3.5, 3.5, 10.0, 10.0));
 }

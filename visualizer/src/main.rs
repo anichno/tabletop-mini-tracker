@@ -1,6 +1,7 @@
 use mini_tracker::{self, Point, Receiver, Table};
 
 mod vis_bounding_box;
+mod vis_iterating_solver;
 mod vis_receivers;
 
 // 1 px == 1 mm
@@ -88,10 +89,10 @@ fn get_mini_edge_points(mini_center: Point) -> [Point; 360] {
     points
 }
 fn main() {
-    let vert_density = 3.0;
+    let vert_density = 2.0;
     let horiz_density = 2.0;
     let vert_view_angle = 30.0;
-    let horiz_view_angle = 40.0;
+    let horiz_view_angle = 30.0;
 
     let mut receivers = place_horizontal_receivers(horiz_view_angle, horiz_density);
     receivers.append(&mut place_vertical_receivers(vert_view_angle, vert_density));
@@ -99,8 +100,8 @@ fn main() {
     let table = Table::new(TABLE_WIDTH, TABLE_HEIGHT, receivers);
 
     let mini_location = Point {
-        x: 63.5,
-        y: 292.09998,
+        x: TABLE_WIDTH / 2.0,
+        y: TABLE_HEIGHT / 2.0,
     };
 
     let mini_edge_points = get_mini_edge_points(mini_location);
@@ -139,5 +140,6 @@ fn main() {
     );
 
     // vis_receivers::run(table.clone(), mini_location, visible_receivers.clone());
-    vis_bounding_box::run(table, mini_location, visible_receivers.clone());
+    // vis_bounding_box::run(table, mini_location, visible_receivers.clone());
+    vis_iterating_solver::run(table, mini_location, visible_receivers.clone());
 }

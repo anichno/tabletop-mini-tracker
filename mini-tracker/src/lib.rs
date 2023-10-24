@@ -46,6 +46,10 @@ pub struct Line {
 pub struct Polygon {
     pub points: Vec<Point>,
     pub lines: Vec<Line>,
+    pub min_y_point: Point,
+    pub max_y_point: Point,
+    pub min_x_point: Point,
+    pub max_x_point: Point,
 }
 
 #[derive(Clone, Debug)]
@@ -581,7 +585,33 @@ impl Polygon {
             lines.push(Line::new(*point, *next_point));
         }
 
-        Self { points, lines }
+        let mut min_y_point = points[0];
+        let mut max_y_point = points[0];
+        let mut min_x_point = points[0];
+        let mut max_x_point = points[0];
+        for point in points.iter().skip(1) {
+            if point.y < min_y_point.y {
+                min_y_point = *point;
+            }
+            if point.y > max_y_point.y {
+                max_y_point = *point;
+            }
+            if point.x < min_x_point.x {
+                min_x_point = *point;
+            }
+            if point.x > max_x_point.x {
+                max_x_point = *point;
+            }
+        }
+
+        Self {
+            points,
+            lines,
+            min_y_point,
+            max_y_point,
+            min_x_point,
+            max_x_point,
+        }
     }
 
     pub fn get_shrink_lines(&self, size: f32) -> Self {
@@ -603,6 +633,10 @@ impl Polygon {
         Self {
             points: vec![centroid],
             lines: tmp_lines,
+            min_y_point: centroid,
+            max_y_point: centroid,
+            min_x_point: centroid,
+            max_x_point: centroid,
         }
     }
 
@@ -713,6 +747,46 @@ impl Polygon {
         }
 
         self.lines = lines;
+    }
+
+    pub fn bisect(&self, cut_line: Line) -> Option<(Self, Self)> {
+        let mut intersect1 = None;
+        let mut intersect2 = None;
+        for (i, line) in self.lines.iter().enumerate() {
+            if let Some(intersect) = line.intersection(&cut_line, true) {
+                if intersect1.is_none() {
+                    intersect1 = Some((intersect, line, i));
+                } else {
+                    intersect2 = Some((intersect, line, i));
+                    break;
+                }
+            }
+        }
+
+        let (Some(intersect1), Some(intersect2)) = (intersect1, intersect2) else {
+            return None;
+        };
+
+        let (intersect_point_1, intersect_line1, intersect_idx_1) = intersect1;
+        let (intersect_point_2, intersect_line2, intersect_idx_2) = intersect2;
+
+        let mut poly1 = vec![intersect_point_1, intersect_line1.point2];
+        let mut i = (intersect_idx_1 + 1) % self.lines.len();
+        while i != intersect_idx_2 {
+            poly1.push(self.lines[i].point2);
+            i = (i + 1) % self.lines.len();
+        }
+        poly1.push(intersect_point_2);
+
+        let mut poly2 = vec![intersect_point_2, intersect_line2.point2];
+        let mut i = (intersect_idx_2 + 1) % self.lines.len();
+        while i != intersect_idx_1 {
+            poly2.push(self.lines[i].point2);
+            i = (i + 1) % self.lines.len();
+        }
+        poly2.push(intersect_point_1);
+
+        Some((Self::new(&poly1), Self::new(&poly2)))
     }
 }
 
