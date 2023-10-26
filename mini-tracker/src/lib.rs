@@ -439,6 +439,8 @@ impl Line {
     }
 
     pub fn intersection(&self, other: &Self, on_segments_only: bool) -> Option<Point> {
+        let point_margin = float_cmp::F32Margin::default().epsilon(0.001);
+
         if self.m == other.m {
             // Parallel or coincident
             return None;
@@ -460,18 +462,34 @@ impl Line {
 
         if on_segments_only {
             // check if on segment 1
-            if x < self.point1.x.min(self.point2.x) || x > self.point1.x.max(self.point2.x) {
+            if x.approx_ne(self.point1.x.min(self.point2.x), point_margin)
+                && x.approx_ne(self.point1.x.max(self.point2.x), point_margin)
+                && x < self.point1.x.min(self.point2.x)
+                || x > self.point1.x.max(self.point2.x)
+            {
                 return None;
             }
-            if y < self.point1.y.min(self.point2.y) || y > self.point1.y.max(self.point2.y) {
+            if y.approx_ne(self.point1.y.min(self.point2.y), point_margin)
+                && x.approx_ne(self.point1.y.max(self.point2.y), point_margin)
+                && y < self.point1.y.min(self.point2.y)
+                || y > self.point1.y.max(self.point2.y)
+            {
                 return None;
             }
 
             // check if on segment 2
-            if x < other.point1.x.min(other.point2.x) || x > other.point1.x.max(other.point2.x) {
+            if x.approx_ne(other.point1.x.min(other.point2.x), point_margin)
+                && x.approx_ne(other.point1.x.max(other.point2.x), point_margin)
+                && x < other.point1.x.min(other.point2.x)
+                || x > other.point1.x.max(other.point2.x)
+            {
                 return None;
             }
-            if y < other.point1.y.min(other.point2.y) || y > other.point1.y.max(other.point2.y) {
+            if y.approx_ne(other.point1.y.min(other.point2.y), point_margin)
+                && x.approx_ne(other.point1.y.max(other.point2.y), point_margin)
+                && y < other.point1.y.min(other.point2.y)
+                || y > other.point1.y.max(other.point2.y)
+            {
                 return None;
             }
         }
@@ -788,6 +806,19 @@ impl Polygon {
 
         Some((Self::new(&poly1), Self::new(&poly2)))
     }
+
+    pub fn above_line(&self, line: &Line) -> bool {
+        for point in self.points.iter() {
+            let line_y = line.m * point.x + line.b;
+            if line_y.approx_ne(point.y, float_cmp::F32Margin::default().epsilon(0.01))
+                && point.y > line_y
+            {
+                return true;
+            }
+        }
+
+        false
+    }
 }
 
 #[cfg(test)]
@@ -1039,5 +1070,26 @@ mod test {
         let polygon = Polygon::new(&points);
 
         assert_approx_eq!(f32, polygon.area(), 100.0, epsilon = 0.00001);
+    }
+
+    #[test]
+    fn intersect() {
+        let line1 = Line {
+            point1: Point { x: 0.0, y: 573.8 },
+            point2: Point { x: 980.8, y: 573.8 },
+            m: 0.0,
+            b: 573.8,
+        };
+        let line2 = Line {
+            point1: Point { x: 22.86, y: 573.8 },
+            point2: Point {
+                x: 1336.8644,
+                y: -2244.0923,
+            },
+            m: -2.1445076,
+            b: 622.8234,
+        };
+
+        assert!(line1.intersection(&line2, true).is_some());
     }
 }
