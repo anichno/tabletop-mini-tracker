@@ -27,3 +27,5 @@ fp-info-cache
 
 production/
 *.lck
+
+place_footprints.*

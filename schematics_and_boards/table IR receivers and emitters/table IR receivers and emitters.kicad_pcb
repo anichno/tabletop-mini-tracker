@@ -1,7 +1,7 @@
 (kicad_pcb (version 20221018) (generator pcbnew)
 
   (general
-    (thickness 1.6002)
+    (thickness 1.6)
   )
 
   (paper "USLetter")
@@ -11,8 +11,6 @@
 
   (layers
     (0 "F.Cu" signal "Front")
-    (1 "In1.Cu" signal)
-    (2 "In2.Cu" signal)
     (31 "B.Cu" signal "Back")
     (34 "B.Paste" user)
     (35 "F.Paste" user)
@@ -28,8 +26,20 @@
   )
 
   (setup
+    (stackup
+      (layer "F.SilkS" (type "Top Silk Screen"))
+      (layer "F.Paste" (type "Top Solder Paste"))
+      (layer "F.Mask" (type "Top Solder Mask") (thickness 0.01))
+      (layer "F.Cu" (type "copper") (thickness 0.035))
+      (layer "dielectric 1" (type "core") (thickness 1.51) (material "FR4") (epsilon_r 4.5) (loss_tangent 0.02))
+      (layer "B.Cu" (type "copper") (thickness 0.035))
+      (layer "B.Mask" (type "Bottom Solder Mask") (thickness 0.01))
+      (layer "B.Paste" (type "Bottom Solder Paste"))
+      (layer "B.SilkS" (type "Bottom Silk Screen"))
+      (copper_finish "None")
+      (dielectric_constraints no)
+    )
     (pad_to_mask_clearance 0)
-    (solder_mask_min_width 0.12)
     (pcbplotparams
       (layerselection 0x00010fc_ffffffff)
       (plot_on_all_layers_selection 0x0000000_00000000)
@@ -443,9 +453,9 @@
       (stroke (width 0.1) (type solid)) (layer "F.Fab") (tstamp 60373d24-2a1e-4a20-8e27-82da9de49826))
     (fp_line (start 1.6 0.8) (end -1.6 0.8)
       (stroke (width 0.1) (type solid)) (layer "F.Fab") (tstamp cb87d753-1f1e-44ac-a1f6-9e7c9e130b95))
-    (pad "1" smd roundrect (at -1.4625 0 90) (size 1.125 1.75) (layers "F.Cu" "F.Paste" "F.Mask") (roundrect_rratio 0.222222)
+    (pad "1" smd roundrect (at -1.4625 0 90) (size 1.125 1.75) (layers "F.Cu" "F.Paste" "F.Mask") (roundrect_rratio 0.2222222222)
       (net 6 "Net-(D3-K)") (pintype "passive") (tstamp 925cafb4-0e0a-4753-beb2-f53e80bca7c3))
-    (pad "2" smd roundrect (at 1.4625 0 90) (size 1.125 1.75) (layers "F.Cu" "F.Paste" "F.Mask") (roundrect_rratio 0.222222)
+    (pad "2" smd roundrect (at 1.4625 0 90) (size 1.125 1.75) (layers "F.Cu" "F.Paste" "F.Mask") (roundrect_rratio 0.2222222222)
       (net 16 "GND") (pintype "passive") (tstamp a1503f74-5bf2-4216-9d9f-5bb27516c5b1))
     (model "${KICAD6_3DMODEL_DIR}/Resistor_SMD.3dshapes/R_1206_3216Metric.wrl"
       (offset (xyz 0 0 0))
@@ -613,9 +623,9 @@
       (stroke (width 0.1) (type solid)) (layer "F.Fab") (tstamp 4bc2e6e0-e469-4621-9539-d7a2d36eb71c))
     (fp_line (start 1.6 0.8) (end -1.6 0.8)
       (stroke (width 0.1) (type solid)) (layer "F.Fab") (tstamp d076cede-0bc0-4acc-afc4-85040acf1db1))
-    (pad "1" smd roundrect (at -1.4625 0 90) (size 1.125 1.75) (layers "F.Cu" "F.Paste" "F.Mask") (roundrect_rratio 0.222222)
+    (pad "1" smd roundrect (at -1.4625 0 90) (size 1.125 1.75) (layers "F.Cu" "F.Paste" "F.Mask") (roundrect_rratio 0.2222222222)
       (net 4 "Net-(D2-K)") (pintype "passive") (tstamp 283549eb-0362-4450-bad5-c79503abaeb3))
-    (pad "2" smd roundrect (at 1.4625 0 90) (size 1.125 1.75) (layers "F.Cu" "F.Paste" "F.Mask") (roundrect_rratio 0.222222)
+    (pad "2" smd roundrect (at 1.4625 0 90) (size 1.125 1.75) (layers "F.Cu" "F.Paste" "F.Mask") (roundrect_rratio 0.2222222222)
       (net 16 "GND") (pintype "passive") (tstamp 20a75cdf-9e18-4e5e-9160-cd28b47929f9))
     (model "${KICAD6_3DMODEL_DIR}/Resistor_SMD.3dshapes/R_1206_3216Metric.wrl"
       (offset (xyz 0 0 0))
@@ -1076,9 +1086,9 @@
       (stroke (width 0.1) (type solid)) (layer "F.Fab") (tstamp b5026e5a-7940-4608-bd42-53e33b1830f7))
     (fp_line (start 1.6 0.8) (end -1.6 0.8)
       (stroke (width 0.1) (type solid)) (layer "F.Fab") (tstamp 72f8db2f-f8d8-4c3f-ae89-fc7c8e988023))
-    (pad "1" smd roundrect (at -1.4625 0 90) (size 1.125 1.75) (layers "F.Cu" "F.Paste" "F.Mask") (roundrect_rratio 0.222222)
+    (pad "1" smd roundrect (at -1.4625 0 90) (size 1.125 1.75) (layers "F.Cu" "F.Paste" "F.Mask") (roundrect_rratio 0.2222222222)
       (net 2 "Net-(D1-K)") (pintype "passive") (tstamp c5119ec9-f022-4dda-ba1b-88ed60be0ae2))
-    (pad "2" smd roundrect (at 1.4625 0 90) (size 1.125 1.75) (layers "F.Cu" "F.Paste" "F.Mask") (roundrect_rratio 0.222222)
+    (pad "2" smd roundrect (at 1.4625 0 90) (size 1.125 1.75) (layers "F.Cu" "F.Paste" "F.Mask") (roundrect_rratio 0.2222222222)
       (net 16 "GND") (pintype "passive") (tstamp 304d8058-fc70-463c-9a44-8fb3c9968cf7))
     (model "${KICAD6_3DMODEL_DIR}/Resistor_SMD.3dshapes/R_1206_3216Metric.wrl"
       (offset (xyz 0 0 0))
@@ -1771,9 +1781,9 @@
       (stroke (width 0.1) (type solid)) (layer "F.Fab") (tstamp e374e75c-a01a-48ef-97d9-930d2f1672f7))
     (fp_line (start 1.6 0.8) (end -1.6 0.8)
       (stroke (width 0.1) (type solid)) (layer "F.Fab") (tstamp 6ffe93e3-3835-43bc-888c-75489d83488f))
-    (pad "1" smd roundrect (at -1.4625 0 90) (size 1.125 1.75) (layers "F.Cu" "F.Paste" "F.Mask") (roundrect_rratio 0.222222)
+    (pad "1" smd roundrect (at -1.4625 0 90) (size 1.125 1.75) (layers "F.Cu" "F.Paste" "F.Mask") (roundrect_rratio 0.2222222222)
       (net 8 "Net-(D4-K)") (pintype "passive") (tstamp f22ef93a-35ef-48c1-9b6a-66fd67a9e241))
-    (pad "2" smd roundrect (at 1.4625 0 90) (size 1.125 1.75) (layers "F.Cu" "F.Paste" "F.Mask") (roundrect_rratio 0.222222)
+    (pad "2" smd roundrect (at 1.4625 0 90) (size 1.125 1.75) (layers "F.Cu" "F.Paste" "F.Mask") (roundrect_rratio 0.2222222222)
       (net 16 "GND") (pintype "passive") (tstamp 0344e436-d5e1-412c-b072-2335bf2510c7))
     (model "${KICAD6_3DMODEL_DIR}/Resistor_SMD.3dshapes/R_1206_3216Metric.wrl"
       (offset (xyz 0 0 0))
@@ -2158,6 +2168,12 @@
     (stroke (width 0.0381) (type default)) (fill none) (layer "Edge.Cuts") (tstamp b7073d9f-024f-47f0-9803-2e9e774b4d1d))
   (gr_circle (center 120.015 117.755) (end 121.565 117.755)
     (stroke (width 0.0381) (type default)) (fill none) (layer "Edge.Cuts") (tstamp d85f037a-aa12-4c1e-b040-816d42785e9a))
+  (gr_text "D&D Table IR Receiver/Emitter V1" (at 179.705 123.952) (layer "B.SilkS") (tstamp e3bdc9a6-7b53-4a1f-b3f8-268894390932)
+    (effects (font (size 0.8128 0.8128) (thickness 0.1524) bold) (justify left bottom mirror))
+  )
+  (gr_text "JLCJLCJLCJLC" (at 109.22 123.825) (layer "B.SilkS") (tstamp ea3720f1-7c1b-4d07-b33b-8024b6c14648)
+    (effects (font (size 0.8128 0.8128) (thickness 0.1524) bold) (justify left bottom mirror))
+  )
 
   (segment (start 109.253 120.843) (end 110.33 121.92) (width 0.15) (layer "F.Cu") (net 2) (tstamp 10382482-f0ff-456d-af7c-7b115ebcba13))
   (segment (start 110.33 115.9825) (end 109.253 117.0595) (width 0.15) (layer "F.Cu") (net 2) (tstamp 66166fcb-dd4c-46fe-b05b-c845fc3727c2))
