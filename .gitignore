@@ -2,5 +2,5 @@ target/
 *.csv
 .vagrant
 *.html
-.vscode
 gerbers
+.vscode
