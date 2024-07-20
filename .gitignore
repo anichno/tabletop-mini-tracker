@@ -1,1 +1,6 @@
 target/
+*.csv
+.vagrant
+*.html
+gerbers
+.vscode
