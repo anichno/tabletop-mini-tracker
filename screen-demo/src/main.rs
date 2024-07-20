@@ -1,4 +1,5 @@
-use crc::CRC_8_BLUETOOTH;
+use crc::CRC_4_G_704;
+
 use speedy2d::{
     color::Color,
     dimen::Vec2,
@@ -13,7 +14,12 @@ const SCREEN_Y: usize = 1080;
 
 const TOT_X: usize = 10;
 const TOT_Y: usize = 8;
-const COLOR_SHIFT_PERCENT: f32 = 0.2;
+const COLOR_SHIFT_PERCENT: f32 = 0.05;
+
+const X_BITS: usize = 4;
+const Y_BITS: usize = 3;
+const CRC_BITS: usize = CRC_4_G_704.width as usize;
+const TOT_BITS: usize = X_BITS + Y_BITS + CRC_BITS;
 
 const PIXELS_PER_X_STEP: usize = SCREEN_X / TOT_X;
 const PIXELS_PER_Y_STEP: usize = SCREEN_Y / TOT_Y;
@@ -26,9 +32,7 @@ struct MyWindowHandler {
     send_coordinates: bool,
     mouse_loc: Vec2,
     color_baseline: (u8, u8, u8),
-    transmitted_val_x: u8,
-    transmitted_val_y: u8,
-    // transmitted_val_crc: u8,
+    transmitted_val: usize,
     start_time: std::time::Instant,
 }
 
@@ -42,39 +46,33 @@ impl WindowHandler for MyWindowHandler {
             let r = screen.data()[offset];
             let g = screen.data()[offset + 1];
             let b = screen.data()[offset + 2];
-            // if self.cur_bit == 0 && self.send_coordinates {
             if (self.cur_frame - 1) % (self.base_interval + 1) != 0 {
                 // println!("\t\t{r}, {g}, {b}");
-                self.transmitted_val_x <<= 1;
-                if r > self.color_baseline.0 {
-                    self.transmitted_val_x |= 1;
+                self.transmitted_val <<= 1;
+                if r + g + b > self.color_baseline.0 + self.color_baseline.1 + self.color_baseline.2
+                {
+                    self.transmitted_val |= 1;
                 }
-
-                self.transmitted_val_y <<= 1;
-                if b > self.color_baseline.2 {
-                    self.transmitted_val_y |= 1;
-                }
-
-                // self.transmitted_val_crc <<= 1;
-                // if b > self.color_baseline.2 {
-                //     self.transmitted_val_crc |= 1;
-                // }
             } else {
                 // println!("baseline:\t{r}, {g}, {b}");
                 self.color_baseline = (r, g, b);
             }
-            if self.cur_bit == 8 {
+            if self.cur_bit as usize == TOT_BITS {
                 let tot_time = std::time::Instant::now().duration_since(self.start_time);
-                println!(
-                    "received: ({}, {}) in {} ms",
-                    self.transmitted_val_x,
-                    self.transmitted_val_y,
-                    tot_time.as_millis()
-                );
+                let recv_x = self.transmitted_val >> (Y_BITS + CRC_BITS);
+                let recv_y = self.transmitted_val >> CRC_BITS & (2_usize.pow(Y_BITS as u32) - 1);
+                let recv_crc = self.transmitted_val & (2_usize.pow(CRC_BITS as u32) - 1);
 
-                // let calc_crc = crc::Crc::<u8>::new(&CRC_8_BLUETOOTH)
-                //     .checksum(&[self.transmitted_val_x, self.transmitted_val_y]);
-                // println!("valid crc: {}", calc_crc == self.transmitted_val_crc);
+                let crc_val =
+                    crc::Crc::<u8>::new(&CRC_4_G_704).checksum(&[recv_x as u8, recv_y as u8]);
+
+                println!(
+                    "received: ({}, {}) in {} ms, crc valid: {}",
+                    recv_x,
+                    recv_y,
+                    tot_time.as_millis(),
+                    crc_val as usize == recv_crc
+                );
             }
         }
         graphics.clear_screen(Color::from_rgb(0.5, 0.5, 0.5));
@@ -113,44 +111,43 @@ impl WindowHandler for MyWindowHandler {
         }
 
         if self.send_coordinates {
+            graphics.draw_rectangle(
+                Rectangle::from_tuples((0.0, 0.0), (SCREEN_X as f32, SCREEN_Y as f32)),
+                Color::from_rgba(0.0, 0.0, 0.0, COLOR_SHIFT_PERCENT),
+            );
+
             if self.cur_frame % (self.base_interval + 1) != 0 {
                 // println!("Sending bit: {}", self.cur_bit);
                 // draw grid
                 // draw y
                 for y in 0..TOT_Y {
                     let pixel_y = (y * PIXELS_PER_Y_STEP) as f32;
-                    let coord_y_bit = (y >> (7 - self.cur_bit)) & 1;
                     for x in 0..TOT_X {
                         let pixel_x = (x * PIXELS_PER_X_STEP) as f32;
-                        let coord_x_bit = (x >> (7 - self.cur_bit)) & 1;
 
-                        // let crc_val =
-                        //     crc::Crc::<u8>::new(&CRC_8_BLUETOOTH).checksum(&[x as u8, y as u8]);
-                        // let crc_bit = (crc_val >> (7 - self.cur_bit)) & 1;
+                        let crc_val =
+                            crc::Crc::<u8>::new(&CRC_4_G_704).checksum(&[x as u8, y as u8]);
 
-                        let r = if coord_x_bit == 1 { 1.0 } else { 0.0 };
-
-                        // leave g alone due to color sensor
-                        // let g = if coord_y_bit == 1 { 1.0 } else { 0.0 };
-                        let b = if coord_y_bit == 1 { 1.0 } else { 0.0 };
-
-                        let color = Color::from_rgba(r, 0.0, b, COLOR_SHIFT_PERCENT);
-
-                        graphics.draw_rectangle(
-                            Rectangle::from_tuples(
-                                (pixel_x, pixel_y),
-                                (
-                                    pixel_x + PIXELS_PER_X_STEP as f32,
-                                    pixel_y + PIXELS_PER_Y_STEP as f32,
+                        let transmission = (x << (Y_BITS + CRC_BITS))
+                            | (y << CRC_BITS)
+                            | (crc_val as usize & (2_usize.pow(CRC_BITS as u32) - 1));
+                        if (transmission >> (TOT_BITS - 1 - self.cur_bit as usize)) & 1 > 0 {
+                            graphics.draw_rectangle(
+                                Rectangle::from_tuples(
+                                    (pixel_x, pixel_y),
+                                    (
+                                        pixel_x + PIXELS_PER_X_STEP as f32,
+                                        pixel_y + PIXELS_PER_Y_STEP as f32,
+                                    ),
                                 ),
-                            ),
-                            color,
-                        );
+                                Color::from_rgba(1.0, 1.0, 1.0, COLOR_SHIFT_PERCENT),
+                            );
+                        }
                     }
                 }
 
                 self.cur_bit += 1;
-                if self.cur_bit >= 8 {
+                if self.cur_bit as usize >= TOT_BITS {
                     self.send_coordinates = false;
                 }
             }
@@ -175,6 +172,7 @@ impl WindowHandler for MyWindowHandler {
             self.send_coordinates = true;
             self.cur_bit = 0;
             self.cur_frame = 0;
+            self.transmitted_val = 0;
             self.start_time = std::time::Instant::now();
             helper.request_redraw();
         }
@@ -195,9 +193,7 @@ fn main() {
         send_coordinates: false,
         mouse_loc: Vec2::new(0.0, 0.0),
         color_baseline: (0, 0, 0),
-        transmitted_val_x: 0,
-        transmitted_val_y: 0,
-        // transmitted_val_crc: 0,
+        transmitted_val: 0,
         start_time: std::time::Instant::now(),
     });
 }
