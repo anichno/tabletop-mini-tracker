@@ -3,6 +3,7 @@ use crc::CRC_4_G_704;
 use speedy2d::{
     color::Color,
     dimen::Vec2,
+    font::{TextLayout, TextOptions},
     image::ImageHandle,
     shape::Rectangle,
     window::{WindowHandler, WindowHelper},
@@ -14,7 +15,7 @@ const SCREEN_Y: usize = 1080;
 
 const TOT_X: usize = 10;
 const TOT_Y: usize = 8;
-const COLOR_SHIFT_PERCENT: f32 = 0.05;
+const COLOR_SHIFT_PERCENT: f32 = 0.1;
 
 const X_BITS: usize = 4;
 const Y_BITS: usize = 3;
@@ -29,6 +30,7 @@ struct MyWindowHandler {
     base_interval: i8,
     cur_bit: i8,
     background: Option<ImageHandle>,
+    font: speedy2d::font::Font,
     send_coordinates: bool,
     mouse_loc: Vec2,
     color_baseline: (u8, u8, u8),
@@ -111,12 +113,17 @@ impl WindowHandler for MyWindowHandler {
         }
 
         if self.send_coordinates {
-            graphics.draw_rectangle(
-                Rectangle::from_tuples((0.0, 0.0), (SCREEN_X as f32, SCREEN_Y as f32)),
-                Color::from_rgba(0.0, 0.0, 0.0, COLOR_SHIFT_PERCENT),
+            let text = self.font.layout_text(
+                format!("{}", self.cur_frame).as_str(),
+                100.0,
+                TextOptions::new(),
             );
-
+            graphics.draw_text((10.0, 10.0), Color::RED, &text);
             if self.cur_frame % (self.base_interval + 1) != 0 {
+                graphics.draw_rectangle(
+                    Rectangle::from_tuples((0.0, 0.0), (SCREEN_X as f32, SCREEN_Y as f32)),
+                    Color::from_rgba(0.0, 0.0, 0.0, COLOR_SHIFT_PERCENT),
+                );
                 // println!("Sending bit: {}", self.cur_bit);
                 // draw grid
                 // draw y
@@ -190,6 +197,7 @@ fn main() {
         base_interval: 1,
         cur_bit: 0,
         background: None,
+        font: speedy2d::font::Font::new(include_bytes!("../Monospace.ttf")).unwrap(),
         send_coordinates: false,
         mouse_loc: Vec2::new(0.0, 0.0),
         color_baseline: (0, 0, 0),

@@ -18,7 +18,7 @@ fn main() -> Result<()> {
     let config = color_sensor
         .get_config()?
         .with_operating_mode(opt4048::OperatingMode::Continuous)
-        .with_conversion_time(opt4048::ConversionTime::Time6ms5)
+        .with_conversion_time(opt4048::ConversionTime::Time600us)
         .with_range(opt4048::Range::RangeAuto)
         .with_int_pol(true)
         .with_latch(false);
@@ -32,24 +32,33 @@ fn main() -> Result<()> {
 
     loop {
         color_int_pin.poll_interrupt(false, None)?;
-        let (x, y, z) = (
-            color_sensor.get_channel_0()?,
-            color_sensor.get_channel_1()?,
-            color_sensor.get_channel_2()?,
-        );
-        println!(
-            "{},{},{},{}",
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)?
-                .as_millis(),
-            x,
-            y,
-            z
-        );
+        // let (x, y, z) = (
+        //     color_sensor.get_channel_0()?,
+        //     color_sensor.get_channel_1()?,
+        //     color_sensor.get_channel_2()?,
+        // );
+        // println!(
+        //     "{},{},{},{}",
+        //     std::time::SystemTime::now()
+        //         .duration_since(std::time::UNIX_EPOCH)?
+        //         .as_millis(),
+        //     x,
+        //     y,
+        //     z
+        // );
         // let test = color_sensor.get_channel_test();
         // println!("{:?} : {:?}", test, test.to_float());
         // println!("{:?}", color_sensor.get_color_cie());
         // std::thread::sleep(std::time::Duration::from_secs(1));
+
+        let brightness = color_sensor.get_channel_3()?;
+        println!(
+            "{},{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)?
+                .as_millis(),
+            brightness
+        );
     }
 
     Ok(())
