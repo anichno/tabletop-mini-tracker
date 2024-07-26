@@ -60,6 +60,4 @@ fn main() -> Result<()> {
             brightness
         );
     }
-
-    Ok(())
 }

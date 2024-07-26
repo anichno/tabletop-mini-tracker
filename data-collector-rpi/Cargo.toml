@@ -1,0 +1,9 @@
+[package]
+name = "data-collector-rpi"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+rppal = { version = "0.18.0", features = ["hal"] }
+opt4048 = { path = "../../opt4048" }
+anyhow = "1.0.86"

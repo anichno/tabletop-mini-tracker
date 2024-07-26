@@ -337,6 +337,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "data-collector-rpi"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "opt4048",
+ "rppal",
+]
+
+[[package]]
+name = "data-collector-screen"
+version = "0.1.0"
+dependencies = [
+ "speedy2d 2.1.0",
+]
+
+[[package]]
 name = "deflate"
 version = "0.8.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
