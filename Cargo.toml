@@ -1,4 +1,14 @@
 [workspace]
 resolver = "2"
-members = ["simulator", "mini-mount", "mini-tracker", "visualizer", "screen-demo", "raspberry-pi-demo", "data-collector-screen", "data-collector-rpi"]
+members = [
+    "simulator",
+    "mini-mount",
+    "mini-tracker",
+    "visualizer",
+    "screen-demo",
+    "raspberry-pi-demo",
+    "data-collector-screen",
+    "data-collector-rpi",
+    "screen-rpi-sync-demo/screen", "screen-rpi-sync-demo/raspi",
+]
 exclude = ["test-firmware"]
