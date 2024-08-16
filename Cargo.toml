@@ -9,6 +9,7 @@ members = [
     "raspberry-pi-demo",
     "data-collector-screen",
     "data-collector-rpi",
-    "screen-rpi-sync-demo/screen", "screen-rpi-sync-demo/raspi",
+    "screen-rpi-sync-demo/screen", "screen-rpi-sync-demo/raspi", 
+    #"screen-nrf52-sync-demo/nrf52",
 ]
-exclude = ["test-firmware"]
+exclude = ["test-firmware", "screen-nrf52-sync-demo/nrf52"]
