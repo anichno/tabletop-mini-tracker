@@ -34,6 +34,11 @@ nrf-softdevice-s113 = "0.1.2"
 panic-halt = "0.2.0"
 panic-probe = { version = "0.3.2", features = ["print-defmt"], optional = true }
 opt4048 = { path = "../../../opt4048" }
+common = { path = "../common" }
+static_cell = "2.1.0"
+num_enum = { version = "0.7.3", default-features = false }
+crc = "3.2.1"
+binary_serde = "1.0.24"
 
 
 [[bin]]
