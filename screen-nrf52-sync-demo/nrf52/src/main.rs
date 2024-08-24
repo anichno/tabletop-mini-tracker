@@ -17,9 +17,9 @@ use core::mem;
 use embassy_executor::Spawner;
 use embassy_nrf::{
     self as _,
-    gpio::Input,
+    gpio::{Input, Output},
     interrupt::{self, InterruptExt},
-    peripherals::{P1_15, TWISPI0},
+    peripherals::{P0_14, P1_15, TWISPI0},
 };
 use embassy_nrf::{bind_interrupts, peripherals};
 use embassy_nrf::{
@@ -105,6 +105,7 @@ fn send_ack(server: &Server, conn: &Connection, ack: common::CommandAck) {
 async fn light_sensor_task(
     mut color_sensor: Opt4048<Twim<'static, TWISPI0>>,
     mut color_int_pin: Input<'static, P1_15>,
+    mut transmission_status_led: Output<'static, P0_14>,
     server: &'static Server,
     color_signal: &'static Signal<NoopRawMutex, (common::MiniCommands, Connection)>,
 ) {
@@ -117,6 +118,7 @@ async fn light_sensor_task(
 
         match cmd {
             common::MiniCommands::StartTransmission => {
+                transmission_status_led.set_low();
                 cur_transmission = TransmissionState::default();
                 let num_bits = server.commands.transmission_description_get().unwrap();
                 cur_transmission.num_x_bits = num_bits[0];
@@ -196,6 +198,8 @@ async fn light_sensor_task(
                     error!("Checksum mismatch");
                     ack = common::CommandAck::Error;
                 }
+
+                transmission_status_led.set_high();
             }
         }
 
@@ -266,6 +270,11 @@ async fn main(spawner: Spawner) {
     // color sensor interrupt pin
     let color_int_pin = gpio::Input::new(p.P1_15, gpio::Pull::Up);
     let trigger_transmission_btn = gpio::Input::new(p.P0_11, gpio::Pull::Up);
+
+    let mut connection_status_led =
+        gpio::Output::new(p.P0_13, gpio::Level::High, gpio::OutputDrive::Standard);
+    let transmission_status_led =
+        gpio::Output::new(p.P0_14, gpio::Level::High, gpio::OutputDrive::Standard);
 
     info!("Initializing TWI...");
     let config = twim::Config::default();
@@ -345,6 +354,7 @@ async fn main(spawner: Spawner) {
         .spawn(light_sensor_task(
             color_sensor,
             color_int_pin,
+            transmission_status_led,
             server,
             color_signal,
         ))
@@ -382,6 +392,7 @@ async fn main(spawner: Spawner) {
         info!("advertising done!");
 
         trigger_transmission_signal.signal(Some(conn.clone()));
+        connection_status_led.set_low();
 
         // Run the GATT server on the connection. This returns when the connection gets disconnected.
         //
@@ -421,5 +432,6 @@ async fn main(spawner: Spawner) {
         info!("gatt_server run exited with error: {:?}", e);
 
         trigger_transmission_signal.signal(None);
+        connection_status_led.set_high();
     }
 }
