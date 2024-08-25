@@ -5,7 +5,7 @@
 
 use binary_serde::BinarySerde;
 use common::btle_constants::command_service;
-use defmt::{error, info, unwrap};
+use defmt::{debug, error, info, unwrap};
 use embassy_futures::select::select;
 use embassy_sync::{blocking_mutex::raw::NoopRawMutex, signal::Signal};
 #[cfg(not(feature = "defmt"))]
@@ -91,7 +91,9 @@ async fn get_brightness(
 ) -> u32 {
     color_sensor.trigger_oneshot().unwrap();
     color_int_pin.wait_for_rising_edge().await;
-    color_sensor.get_channel_3().unwrap()
+    let val = color_sensor.get_channel_3().unwrap();
+    debug!("brightness: {}", val);
+    val
 }
 
 fn send_ack(server: &Server, conn: &Connection, ack: common::CommandAck) {
