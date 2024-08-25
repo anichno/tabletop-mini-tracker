@@ -13,6 +13,6 @@ members = [
     "screen-rpi-sync-demo/raspi",
     "screen-nrf52-sync-demo/btletoy",
     "screen-nrf52-sync-demo/common",
-    #"screen-nrf52-sync-demo/nrf52",
+    "screen-nrf52-sync-demo/screen-nrf52",
 ]
 exclude = ["test-firmware", "screen-nrf52-sync-demo/nrf52"]

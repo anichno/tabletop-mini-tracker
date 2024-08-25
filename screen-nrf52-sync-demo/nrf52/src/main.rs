@@ -186,6 +186,8 @@ async fn light_sensor_task(
                         z: 0,
                         error: 0,
                     };
+
+                    info!("Located at: ({}, {})", location.x, location.y);
                     let mut location_buf: [u8; common::Location::SERIALIZED_SIZE] =
                         [0; common::Location::SERIALIZED_SIZE];
                     location.binary_serialize(&mut location_buf, binary_serde::Endianness::Little);
@@ -211,11 +213,14 @@ async fn light_sensor_task(
                 cur_transmission.calibrate_low,
                 cur_transmission.calibrate_high,
             ) {
-                let diff = high - low;
-                let range = diff / 3;
-                cur_transmission.zero_bit_max = Some(low + range);
-                cur_transmission.one_bit_min = Some(high - range);
-                info!("Calibrated");
+                if let Some(diff) = high.checked_sub(low) {
+                    let range = diff / 3;
+                    cur_transmission.zero_bit_max = Some(low + range);
+                    cur_transmission.one_bit_min = Some(high - range);
+                    info!("Calibrated");
+                } else {
+                    ack = common::CommandAck::Error;
+                }
             }
         }
 

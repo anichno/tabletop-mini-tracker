@@ -1874,6 +1874,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "screen-nrf52"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "binary_serde",
+ "btleplug",
+ "common",
+ "crc",
+ "env_logger",
+ "futures",
+ "log",
+ "speedy2d 2.1.0",
+ "tokio",
+ "tokio-stream",
+ "uuid",
+]
+
+[[package]]
 name = "serde"
 version = "1.0.208"
 source = "registry+https://github.com/rust-lang/crates.io-index"
