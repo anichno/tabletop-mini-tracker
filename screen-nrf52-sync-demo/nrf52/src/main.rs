@@ -1,10 +1,11 @@
 #![no_std]
 #![no_main]
 
-mod fmt;
+// mod fmt;
 
 use binary_serde::BinarySerde;
 use common::btle_constants::command_service;
+use defmt::{error, info, unwrap};
 use embassy_futures::select::select;
 use embassy_sync::{blocking_mutex::raw::NoopRawMutex, signal::Signal};
 #[cfg(not(feature = "defmt"))]
@@ -26,7 +27,7 @@ use embassy_nrf::{
     gpio,
     twim::{self, Twim},
 };
-use fmt::{error, info, unwrap};
+// use fmt::{error, info, unwrap};
 use nrf_softdevice::ble::{
     advertisement_builder::{
         Flag, LegacyAdvertisementBuilder, LegacyAdvertisementPayload, ServiceList, ServiceUuid16,
