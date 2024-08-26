@@ -111,6 +111,9 @@ fn run_test(
     let mut max_error = 0.0;
     let mut max_area = 0.0;
 
+    let mut max_error_mini = Point { x: 0.0, y: 0.0 };
+    let mut max_area_mini = Point { x: 0.0, y: 0.0 };
+
     let mut x = STANDOFF_DISTANCE + MM_PER_INCH / 2.0;
     while x < TABLE_WIDTH - STANDOFF_DISTANCE - MM_PER_INCH / 2.0 {
         let mut y = STANDOFF_DISTANCE + MM_PER_INCH / 2.0;
@@ -143,17 +146,7 @@ fn run_test(
             //     vert_view_angle,
             //     horiz_view_angle
             // );
-            let Some(bounding_polygon) = table.get_bounding_polygon(&visible_receivers[..]) else {
-                return TestResult {
-                    total_receivers,
-                    all_correct: false,
-                    avg_area: avg_area / tot_locations as f32,
-                    avg_error: avg_error / tot_locations as f32,
-                    max_area,
-                    max_error,
-                };
-            };
-            assert!(!bounding_polygon.points.is_empty());
+            let bounding_polygon = table.get_bounding_polygon(&visible_receivers[..]).unwrap();
             // let Some(shrink_polygon) = bounding_polygon.shrink(25.4 / 2.0) else {
             //     return TestResult {
             //         total_receivers,
@@ -165,7 +158,7 @@ fn run_test(
             //     };
             // };
             let guessed_location = bounding_polygon.center();
-            let error = 0.0; //shrink_polygon.max_width();
+            let error = bounding_polygon.max_width();
             let area = bounding_polygon.area();
             avg_area += area;
             avg_error += error;
@@ -186,18 +179,23 @@ fn run_test(
 
             if error > max_error {
                 max_error = error;
+                max_error_mini = mini_location;
                 // dbg!(mini_location);
             }
 
             if area > max_area {
                 max_area = area;
                 // dbg!(mini_location);
+                max_area_mini = mini_location;
             }
             y += GRID_SIZE;
         }
 
         x += GRID_SIZE;
     }
+
+    dbg!(max_error_mini);
+    dbg!(max_area_mini);
 
     TestResult {
         total_receivers,
@@ -210,61 +208,5 @@ fn run_test(
 }
 
 fn main() {
-    const VERT_DENSITY_MIN: f32 = 0.5;
-    const VERT_DENSITY_MAX: f32 = 3.0;
-    const HORIZ_DENSITY_MIN: f32 = 0.5;
-    const HORIZ_DENSITY_MAX: f32 = 3.0;
-    const VERT_VIEW_ANGLE_MIN: f32 = 10.0;
-    const VERT_VIEW_ANGLE_MAX: f32 = 90.0;
-    const HORIZ_VIEW_ANGLE_MIN: f32 = 10.0;
-    const HORIZ_VIEW_ANGLE_MAX: f32 = 90.0;
-
-    const VERT_DENSITY_STEP: f32 = 0.5;
-    const HORIZ_DENSITY_STEP: f32 = 0.5;
-    const VERT_VIEW_ANGLE_STEP: f32 = 10.0;
-    const HORIZ_VIEW_ANGLE_STEP: f32 = 10.0;
-
-    println!("total_receivers,avg_area,avg_error,max_area,max_error,vert_density,horiz_density,vert_view_angle,horiz_view_angle");
-
-    let mut vert_density = VERT_DENSITY_MIN;
-    while vert_density <= VERT_DENSITY_MAX {
-        let mut horiz_density = HORIZ_DENSITY_MIN;
-        while horiz_density <= HORIZ_DENSITY_MAX {
-            let mut vert_view_angle = VERT_VIEW_ANGLE_MIN;
-            while vert_view_angle <= VERT_VIEW_ANGLE_MAX {
-                let mut horiz_view_angle = HORIZ_VIEW_ANGLE_MIN;
-                while horiz_view_angle <= HORIZ_VIEW_ANGLE_MAX {
-                    let result = run_test(
-                        vert_density,
-                        horiz_density,
-                        vert_view_angle,
-                        horiz_view_angle,
-                    );
-
-                    if result.all_correct {
-                        println!(
-                            "{},{},{},{},{},{},{},{},{}",
-                            result.total_receivers,
-                            result.avg_area,
-                            result.avg_error,
-                            result.max_area,
-                            result.max_error,
-                            vert_density,
-                            horiz_density,
-                            vert_view_angle,
-                            horiz_view_angle
-                        );
-                    }
-
-                    horiz_view_angle += HORIZ_VIEW_ANGLE_STEP;
-                }
-
-                vert_view_angle += VERT_VIEW_ANGLE_STEP;
-            }
-
-            horiz_density += HORIZ_DENSITY_STEP;
-        }
-
-        vert_density += VERT_DENSITY_STEP;
-    }
+    println!("{:?}", run_test(3.5, 3.5, 10.0, 10.0));
 }

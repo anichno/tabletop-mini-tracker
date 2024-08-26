@@ -5,6 +5,7 @@ members = [
     "mini-mount",
     "mini-tracker",
     "visualizer",
+    "find_worst_case",
     "screen-demo",
     "raspberry-pi-demo",
     "data-collector-screen",

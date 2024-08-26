@@ -19,7 +19,7 @@ impl Direction {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Point {
     pub x: f32,
     pub y: f32,
@@ -34,7 +34,7 @@ impl float_cmp::ApproxEq for Point {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Line {
     pub point1: Point,
     pub point2: Point,
@@ -42,6 +42,17 @@ pub struct Line {
     pub b: f32,
 }
 
+#[derive(Clone, Debug)]
+pub struct Polygon {
+    pub points: Vec<Point>,
+    pub lines: Vec<Line>,
+    pub min_y_point: Point,
+    pub max_y_point: Point,
+    pub min_x_point: Point,
+    pub max_x_point: Point,
+}
+
+#[derive(Clone, Debug)]
 pub struct Table {
     pub receivers: Vec<Receiver>,
     pub table_top: Line,
@@ -59,6 +70,8 @@ pub struct Receiver {
     pub view_bound2: Line,
     pub expanded_view_bound1: Line,
     pub expanded_view_bound2: Line,
+    // pub negative_expanded_view_bound1: Line,
+    // pub negative_expanded_view_bound2: Line,
     pub expanded_view_location: Point,
 }
 
@@ -118,15 +131,97 @@ impl Table {
         true
     }
 
+    // given a set of receivers, return a set of points which describe the bounding polygon of the mini
+    pub fn get_bounding_polygon(&self, receivers: &[(Receiver, bool)]) -> Option<Polygon> {
+        let point_margin = float_cmp::F32Margin::default().epsilon(0.0001);
+
+        // for each receiver that can see the mini, add points for all intersections created by view lines, then remove any points which cannot be seen by this receiver
+        let mut bounding_lines = vec![
+            (self.table_top, false),
+            (self.table_bottom, false),
+            (self.table_left, false),
+            (self.table_right, false),
+        ];
+
+        let mut intersections: Vec<Point> = Vec::new();
+
+        let can_see_receivers: Vec<&Receiver> = receivers
+            .iter()
+            .filter(|(_, v)| *v)
+            .map(|(r, _)| r)
+            .collect();
+
+        // Note: by testing each point as we go against receivers, we can save a lot of memory for really not much of a performance hit
+        for (receiver, can_see) in receivers.iter() {
+            for (line, v) in &bounding_lines {
+                if *can_see || *v {
+                    // if *can_see {
+                    if let Some(intersect) = line.intersection(&receiver.expanded_view_bound1, true)
+                    {
+                        if self.receivers_can_see_estimated(&can_see_receivers, &intersect) {
+                            intersections.push(intersect);
+                        }
+                    }
+                    if let Some(intersect) = line.intersection(&receiver.expanded_view_bound2, true)
+                    {
+                        if self.receivers_can_see_estimated(&can_see_receivers, &intersect) {
+                            intersections.push(intersect);
+                        }
+                    }
+                    // } else {
+                    if let Some(intersect) = line.intersection(&receiver.view_bound1, true) {
+                        if intersect.approx_ne(receiver.location, point_margin) {
+                            if self.receivers_can_see_estimated(&can_see_receivers, &intersect) {
+                                intersections.push(intersect);
+                            }
+                        }
+                    }
+                    if let Some(intersect) = line.intersection(&receiver.view_bound2, true) {
+                        if intersect.approx_ne(receiver.location, point_margin) {
+                            if self.receivers_can_see_estimated(&can_see_receivers, &intersect) {
+                                intersections.push(intersect);
+                            }
+                        }
+                    }
+                    // }
+                }
+            }
+            if self.receivers_can_see_estimated(&can_see_receivers, &receiver.location) {
+                intersections.push(receiver.location);
+            }
+
+            if *can_see {
+                bounding_lines.push((receiver.expanded_view_bound1, *can_see));
+                bounding_lines.push((receiver.expanded_view_bound2, *can_see));
+            } else {
+                bounding_lines.push((receiver.view_bound1, *can_see));
+                bounding_lines.push((receiver.view_bound2, *can_see));
+            }
+        }
+
+        for (receiver, _) in receivers.iter().filter(|(_, v)| !*v) {
+            intersections.retain(|p| receiver.cannot_see(p));
+        }
+
+        if intersections.is_empty() {
+            return None;
+        }
+
+        let mut bounds = Polygon::new(&intersections);
+        // bounds.remove_colinear_points();
+        // assert!(!bounds.points.is_empty());
+        Some(bounds)
+    }
+
     pub fn get_location(&self, receivers: &[(&Receiver, bool)]) -> (Point, f32) {
         let point_margin = float_cmp::F32Margin::default().epsilon(0.0001);
 
         // for each receiver that can see the mini, add points for all intersections created by view lines, then remove any points which cannot be seen by this receiver
         let mut bounding_lines = vec![
-            self.table_top,
-            self.table_bottom,
-            self.table_left,
-            self.table_right,
+            (self.table_top, false),
+            (self.table_bottom, false),
+            (self.table_left, false),
+            (self.table_right, false),
         ];
 
         let mut intersections: Vec<Point> = Vec::new();
@@ -138,8 +233,9 @@ impl Table {
             .collect();
 
         // Note: by testing each point as we go against receivers, we can save a lot of memory for really not much of a performance hit
-        for (receiver, _) in receivers.iter() {
-            for line in &bounding_lines {
+        for (receiver, can_see) in receivers.iter() {
+            for (line, v) in &bounding_lines {
+                // if *can_see || *v {
                 if let Some(intersect) = line.intersection(&receiver.expanded_view_bound1, true) {
                     if self.receivers_can_see_estimated(&can_see_receivers, &intersect) {
                         intersections.push(intersect);
@@ -165,15 +261,18 @@ impl Table {
                         }
                     }
                 }
+                // }
             }
             if self.receivers_can_see_estimated(&can_see_receivers, &receiver.location) {
                 intersections.push(receiver.location);
             }
 
-            bounding_lines.push(receiver.expanded_view_bound1);
-            bounding_lines.push(receiver.expanded_view_bound2);
-            bounding_lines.push(receiver.view_bound1);
-            bounding_lines.push(receiver.view_bound2);
+            // if *can_see {
+            bounding_lines.push((receiver.expanded_view_bound1, *can_see));
+            bounding_lines.push((receiver.expanded_view_bound2, *can_see));
+            bounding_lines.push((receiver.view_bound1, *can_see));
+            bounding_lines.push((receiver.view_bound2, *can_see));
+            // }
         }
 
         for (receiver, _) in receivers.iter().filter(|(_, v)| !*v) {
@@ -340,6 +439,8 @@ impl Line {
     }
 
     pub fn intersection(&self, other: &Self, on_segments_only: bool) -> Option<Point> {
+        let point_margin = float_cmp::F32Margin::default().epsilon(0.001);
+
         if self.m == other.m {
             // Parallel or coincident
             return None;
@@ -358,23 +459,37 @@ impl Line {
             x = (other.b - self.b) / (self.m - other.m);
             y = self.m * x + self.b;
         }
-        // let x = x.round() as i32;
-        // let y = y.round() as i32;
 
         if on_segments_only {
             // check if on segment 1
-            if x < self.point1.x.min(self.point2.x) || x > self.point1.x.max(self.point2.x) {
+            if x.approx_ne(self.point1.x.min(self.point2.x), point_margin)
+                && x.approx_ne(self.point1.x.max(self.point2.x), point_margin)
+                && x < self.point1.x.min(self.point2.x)
+                || x > self.point1.x.max(self.point2.x)
+            {
                 return None;
             }
-            if y < self.point1.y.min(self.point2.y) || y > self.point1.y.max(self.point2.y) {
+            if y.approx_ne(self.point1.y.min(self.point2.y), point_margin)
+                && x.approx_ne(self.point1.y.max(self.point2.y), point_margin)
+                && y < self.point1.y.min(self.point2.y)
+                || y > self.point1.y.max(self.point2.y)
+            {
                 return None;
             }
 
             // check if on segment 2
-            if x < other.point1.x.min(other.point2.x) || x > other.point1.x.max(other.point2.x) {
+            if x.approx_ne(other.point1.x.min(other.point2.x), point_margin)
+                && x.approx_ne(other.point1.x.max(other.point2.x), point_margin)
+                && x < other.point1.x.min(other.point2.x)
+                || x > other.point1.x.max(other.point2.x)
+            {
                 return None;
             }
-            if y < other.point1.y.min(other.point2.y) || y > other.point1.y.max(other.point2.y) {
+            if y.approx_ne(other.point1.y.min(other.point2.y), point_margin)
+                && x.approx_ne(other.point1.y.max(other.point2.y), point_margin)
+                && y < other.point1.y.min(other.point2.y)
+                || y > other.point1.y.max(other.point2.y)
+            {
                 return None;
             }
         }
@@ -404,6 +519,305 @@ impl Line {
         };
 
         Line::new(new_point1, new_point2)
+    }
+}
+
+fn order_points_clockwise(points: &mut [Point]) {
+    let num_points = points.len() as f32;
+    let sum_x = points.iter().map(|p| p.x).sum::<f32>();
+    let sum_y = points.iter().map(|p| p.y).sum::<f32>();
+    let centroid = Point {
+        x: sum_x / num_points,
+        y: sum_y / num_points,
+    };
+
+    points.sort_by(|a, b| {
+        let mut angle_a = centroid.angle(a);
+        if angle_a < 0.0 {
+            angle_a += 360.0;
+        }
+        let mut angle_b = centroid.angle(b);
+        if angle_b < 0.0 {
+            angle_b += 360.0;
+        }
+        angle_b.partial_cmp(&angle_a).unwrap().then_with(|| {
+            b.distance(&centroid)
+                .partial_cmp(&a.distance(&centroid))
+                .unwrap()
+        })
+    });
+}
+
+// https://stackoverflow.com/a/451482
+// def area(p):
+//  return 0.5 * abs(sum(x0*y1 - x1*y0
+//      for ((x0, y0), (x1, y1)) in segments(p)))
+fn area(points: &[Point]) -> f32 {
+    let mut area = 0.0;
+    for (i, point) in points.iter().enumerate() {
+        let next_point = if i == points.len() - 1 {
+            &points[0]
+        } else {
+            &points[i + 1]
+        };
+        area += (point.x * next_point.y) - (next_point.x * point.y);
+    }
+    area.abs() / 2.0
+}
+
+// https://en.wikipedia.org/wiki/Centroid#Of_a_polygon
+fn find_centroid(points: &[Point]) -> Point {
+    let area = area(points);
+
+    let mut x = 0.0;
+    let mut y = 0.0;
+    for (i, point) in points.iter().enumerate() {
+        let next_point = if i == points.len() - 1 {
+            &points[0]
+        } else {
+            &points[i + 1]
+        };
+        x += (point.x + next_point.x) * ((point.x * next_point.y) - (next_point.x * point.y));
+        y += (point.y + next_point.y) * ((point.x * next_point.y) - (next_point.x * point.y));
+    }
+
+    Point {
+        x: x.abs() / (6.0 * area),
+        y: y.abs() / (6.0 * area),
+    }
+}
+
+impl Polygon {
+    pub fn new(points: &[Point]) -> Self {
+        let mut points = points.to_vec();
+        order_points_clockwise(&mut points);
+
+        // build lines from ordered points
+        let mut lines = Vec::new();
+        for (i, point) in points.iter().enumerate() {
+            let next_point = if i == points.len() - 1 {
+                &points[0]
+            } else {
+                &points[i + 1]
+            };
+            lines.push(Line::new(*point, *next_point));
+        }
+
+        let mut min_y_point = points[0];
+        let mut max_y_point = points[0];
+        let mut min_x_point = points[0];
+        let mut max_x_point = points[0];
+        for point in points.iter().skip(1) {
+            if point.y < min_y_point.y {
+                min_y_point = *point;
+            }
+            if point.y > max_y_point.y {
+                max_y_point = *point;
+            }
+            if point.x < min_x_point.x {
+                min_x_point = *point;
+            }
+            if point.x > max_x_point.x {
+                max_x_point = *point;
+            }
+        }
+
+        Self {
+            points,
+            lines,
+            min_y_point,
+            max_y_point,
+            min_x_point,
+            max_x_point,
+        }
+    }
+
+    pub fn get_shrink_lines(&self, size: f32) -> Self {
+        let mut tmp_lines = Vec::new();
+        for line in self.lines.iter() {
+            tmp_lines.push(line.parallel_line(size, false));
+        }
+
+        let mut points = Vec::new();
+        for (i, line1) in tmp_lines.iter().enumerate() {
+            for line2 in tmp_lines.iter().skip(i + 1) {
+                if let Some(intersect) = line1.intersection(line2, true) {
+                    points.push(intersect);
+                }
+            }
+        }
+        let centroid = find_centroid(&self.points);
+
+        Self {
+            points: vec![centroid],
+            lines: tmp_lines,
+            min_y_point: centroid,
+            max_y_point: centroid,
+            min_x_point: centroid,
+            max_x_point: centroid,
+        }
+    }
+
+    pub fn shrink(&self, size: f32) -> Option<Self> {
+        let mut tmp_lines = Vec::new();
+        for line in self.lines.iter() {
+            tmp_lines.push(line.parallel_line(size, false));
+        }
+
+        let mut points = Vec::new();
+        for (i, line1) in tmp_lines.iter().enumerate() {
+            for line2 in tmp_lines.iter().skip(i + 1) {
+                if let Some(intersect) = line1.intersection(line2, true) {
+                    points.push((intersect, line1, line2));
+                }
+            }
+        }
+        let centroid = find_centroid(&self.points);
+
+        let mut new_points = Vec::new();
+        for (p, l1, l2) in points {
+            let centroid_line = Line::new(centroid, p);
+            let mut no_intersects = true;
+            for line in tmp_lines.iter() {
+                if line == l1 || line == l2 {
+                    continue;
+                }
+                if centroid_line.intersection(line, true).is_some() {
+                    no_intersects = false;
+                    break;
+                }
+            }
+
+            if no_intersects {
+                new_points.push(p);
+            }
+        }
+
+        if new_points.is_empty() {
+            None
+        } else {
+            Some(Self::new(&new_points))
+        }
+    }
+
+    pub fn center(&self) -> Point {
+        if self.points.len() > 2 {
+            find_centroid(&self.points)
+        } else if self.points.len() == 2 {
+            Point {
+                x: (self.points[0].x + self.points[1].x) / 2.0,
+                y: (self.points[0].y + self.points[1].y) / 2.0,
+            }
+        } else {
+            self.points[0]
+        }
+    }
+
+    pub fn area(&self) -> f32 {
+        area(&self.points)
+    }
+
+    pub fn max_width(&self) -> f32 {
+        let mut max_width = 0.0;
+        for point_a in &self.points {
+            for point_b in &self.points {
+                let distance = point_a.distance(point_b);
+                if distance > max_width {
+                    max_width = distance;
+                }
+            }
+        }
+
+        max_width
+    }
+
+    pub fn remove_colinear_points(&mut self) {
+        let mut i = 0;
+        while i < self.points.len() {
+            let prev_point = if i == 0 {
+                &self.points[self.points.len() - 1]
+            } else {
+                &self.points[i - 1]
+            };
+            let point = &self.points[i];
+            let next_point = if i == self.points.len() - 1 {
+                &self.points[0]
+            } else {
+                &self.points[i + 1]
+            };
+
+            let angle = prev_point.angle(point) - point.angle(next_point);
+            if angle.approx_eq(0.0, float_cmp::F32Margin::default().epsilon(0.01)) {
+                self.points.remove(i);
+            } else {
+                i += 1;
+            }
+        }
+
+        let mut lines = Vec::new();
+        for (i, point) in self.points.iter().enumerate() {
+            let next_point = if i == self.points.len() - 1 {
+                &self.points[0]
+            } else {
+                &self.points[i + 1]
+            };
+            lines.push(Line::new(*point, *next_point));
+        }
+
+        self.lines = lines;
+    }
+
+    pub fn bisect(&self, cut_line: Line) -> Option<(Self, Self)> {
+        let mut intersect1 = None;
+        let mut intersect2 = None;
+        for (i, line) in self.lines.iter().enumerate() {
+            if let Some(intersect) = line.intersection(&cut_line, true) {
+                if intersect1.is_none() {
+                    intersect1 = Some((intersect, line, i));
+                } else {
+                    intersect2 = Some((intersect, line, i));
+                    break;
+                }
+            }
+        }
+
+        let (Some(intersect1), Some(intersect2)) = (intersect1, intersect2) else {
+            return None;
+        };
+
+        let (intersect_point_1, intersect_line1, intersect_idx_1) = intersect1;
+        let (intersect_point_2, intersect_line2, intersect_idx_2) = intersect2;
+
+        let mut poly1 = vec![intersect_point_1, intersect_line1.point2];
+        let mut i = (intersect_idx_1 + 1) % self.lines.len();
+        while i != intersect_idx_2 {
+            poly1.push(self.lines[i].point2);
+            i = (i + 1) % self.lines.len();
+        }
+        poly1.push(intersect_point_2);
+
+        let mut poly2 = vec![intersect_point_2, intersect_line2.point2];
+        let mut i = (intersect_idx_2 + 1) % self.lines.len();
+        while i != intersect_idx_1 {
+            poly2.push(self.lines[i].point2);
+            i = (i + 1) % self.lines.len();
+        }
+        poly2.push(intersect_point_1);
+
+        Some((Self::new(&poly1), Self::new(&poly2)))
+    }
+
+    pub fn above_line(&self, line: &Line) -> bool {
+        for point in self.points.iter() {
+            let line_y = line.m * point.x + line.b;
+            if line_y.approx_ne(point.y, float_cmp::F32Margin::default().epsilon(0.01))
+                && point.y > line_y
+            {
+                return true;
+            }
+        }
+
+        false
     }
 }
 
@@ -642,5 +1056,40 @@ mod test {
             // dbg!(receiver.location, receiver.facing, intersections);
             assert_eq!(intersections, 3);
         }
+    }
+
+    #[test]
+    fn area_of_square() {
+        let points = [
+            Point { x: 0.0, y: 0.0 },
+            Point { x: 10.0, y: 0.0 },
+            Point { x: 10.0, y: 10.0 },
+            Point { x: 0.0, y: 10.0 },
+        ];
+
+        let polygon = Polygon::new(&points);
+
+        assert_approx_eq!(f32, polygon.area(), 100.0, epsilon = 0.00001);
+    }
+
+    #[test]
+    fn intersect() {
+        let line1 = Line {
+            point1: Point { x: 0.0, y: 573.8 },
+            point2: Point { x: 980.8, y: 573.8 },
+            m: 0.0,
+            b: 573.8,
+        };
+        let line2 = Line {
+            point1: Point { x: 22.86, y: 573.8 },
+            point2: Point {
+                x: 1336.8644,
+                y: -2244.0923,
+            },
+            m: -2.1445076,
+            b: 622.8234,
+        };
+
+        assert!(line1.intersection(&line2, true).is_some());
     }
 }
