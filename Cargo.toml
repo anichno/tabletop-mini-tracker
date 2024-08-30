@@ -15,5 +15,11 @@ members = [
     "screen-nrf52-sync-demo/btletoy",
     "screen-nrf52-sync-demo/common",
     "screen-nrf52-sync-demo/screen-nrf52",
+    "orientation_and_centering/screen-orientation",
+    "orientation_and_centering/serial-common",
 ]
-exclude = ["test-firmware", "screen-nrf52-sync-demo/nrf52"]
+exclude = [
+    "test-firmware",
+    "screen-nrf52-sync-demo/nrf52",
+    "orientation_and_centering/nrf52-serial",
+]

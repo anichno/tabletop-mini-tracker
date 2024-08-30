@@ -1,0 +1,10 @@
+[package]
+name = "screen-orientation"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+serialport = "4.5.0"
+speedy2d = "2.1.0"
+opt4048 = { path = "../../../opt4048" }
+serial-common = { path = "../serial-common" }
