@@ -17,6 +17,7 @@ members = [
     "screen-nrf52-sync-demo/screen-nrf52",
     "orientation_and_centering/screen-orientation",
     "orientation_and_centering/serial-common",
+    "imu-toys/imu-rpi-data-collect",
 ]
 exclude = [
     "test-firmware",
