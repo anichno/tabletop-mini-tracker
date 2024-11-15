@@ -1120,6 +1120,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "imu-processing-tests"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "env_logger",
+ "imu-fusion",
+ "log",
+]
+
+[[package]]
+name = "imu-rpi-calibrator"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "byteorder",
+ "env_logger",
+ "imu-fusion",
+ "log",
+ "lsm6dsox",
+ "modular-bitfield-msb",
+ "rppal 0.19.0",
+]
+
+[[package]]
 name = "imu-rpi-data-collect"
 version = "0.1.0"
 dependencies = [

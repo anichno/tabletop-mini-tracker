@@ -1,4 +1,5 @@
 use byteorder::{ByteOrder, LittleEndian};
+use defmt::println;
 use modular_bitfield_msb::prelude::*;
 
 const FS_8G_PER_BIT: f32 = 0.000244;

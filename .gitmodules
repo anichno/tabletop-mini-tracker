@@ -1,0 +1,3 @@
+[submodule "imu-toys/imu-nrf52-calibrator/X-CUBE-MEMS1"]
+	path = imu-toys/imu-nrf52-calibrator/X-CUBE-MEMS1
+	url = https://github.com/STMicroelectronics/X-CUBE-MEMS1.git

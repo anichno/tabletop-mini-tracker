@@ -18,9 +18,12 @@ members = [
     "orientation_and_centering/screen-orientation",
     "orientation_and_centering/serial-common",
     "imu-toys/imu-rpi-data-collect",
+    "imu-toys/imu-processing-tests",
+    "imu-toys/imu-rpi-calibrator",
 ]
 exclude = [
     "test-firmware",
     "screen-nrf52-sync-demo/nrf52",
     "orientation_and_centering/nrf52-serial",
+    "imu-toys/imu-nrf52-calibrator",
 ]
