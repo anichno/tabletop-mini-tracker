@@ -1,0 +1,5 @@
+(sym_lib_table
+  (version 7)
+  (lib (name "anichno")(type "KiCad")(uri "${KIPRJMOD}/../kicad_common_repo/symbols/anichno.kicad_sym")(options "")(descr ""))
+  (lib (name "Fanstel-modules")(type "Legacy")(uri "${KIPRJMOD}/../kicad_common_repo/Fanstel-kicad-library/Fanstel-modules.lib")(options "")(descr ""))
+)

@@ -1,3 +1,6 @@
 [submodule "imu-toys/imu-nrf52-calibrator/X-CUBE-MEMS1"]
 	path = imu-toys/imu-nrf52-calibrator/X-CUBE-MEMS1
 	url = https://github.com/STMicroelectronics/X-CUBE-MEMS1.git
+[submodule "schematics_and_boards/kicad_common_repo"]
+	path = schematics_and_boards/kicad_common_repo
+	url = git@github.com:anichno/kicad.git
