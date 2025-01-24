@@ -1,0 +1,36 @@
+{
+    "layout": {
+        "vbonecut": "False",
+        "hbonecut": "False"
+    },
+    "tabs": {
+        "type": "annotation"
+    },
+    "cuts": {
+        "type": "vcuts"
+    },
+    "framing": {
+        "type": "frame",
+        "width": "10mm",
+        "mintotalheight": "70mm",
+        "mintotalwidth": "70mm"
+    },
+    "tooling": {
+        "type": "4hole",
+        "hoffset": "2.5mm",
+        "voffset": "2mm"
+    },
+    "fiducials": {
+        "type": "4fid",
+        "hoffset": "2.5mm",
+        "voffset": "5mm"
+    },
+    "text": {
+        "type": "simple",
+        "voffset": "5mm",
+        "text": "JLCJLCJLCJLC"
+    },
+    "post": {
+        "millradius": "1mm"
+    }
+}
