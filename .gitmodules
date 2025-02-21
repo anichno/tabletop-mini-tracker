@@ -4,3 +4,6 @@
 [submodule "schematics_and_boards/kicad_common_repo"]
 	path = schematics_and_boards/kicad_common_repo
 	url = git@github.com:anichno/kicad.git
+[submodule "mouse-sensor-toys/mouse-nrf52-camera/py-microdots"]
+	path = mouse-sensor-toys/mouse-nrf52-camera/py-microdots
+	url = https://github.com/cheind/py-microdots.git
