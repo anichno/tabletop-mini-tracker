@@ -28,15 +28,15 @@ class Point:
 
     def distance(self, other):
         return math.sqrt((self.x - other.x) ** 2 + (self.y - other.y) ** 2)
-
-    def angle(self, other):
+    
+    def angle_90(self, other):
         dx = self.x - other.x
         dy = self.y - other.y
 
         radians = math.atan2(dy, dx)
         degrees = math.degrees(radians)
         if degrees < 0:
-            degrees += 180
+            degrees += 90
 
         return degrees
 
@@ -48,6 +48,16 @@ class Point:
         degrees = math.degrees(radians)
 
         return degrees
+    
+    def rotate(self, degrees):
+        # Convert degrees to radians
+        radians = math.radians(degrees)
+        
+        # Apply rotation formulas
+        x_new = self.x * math.cos(radians) - self.y * math.sin(radians)
+        y_new = self.x * math.sin(radians) + self.y * math.cos(radians)
+        
+        return Point(x_new, y_new)
 
 
 class Blob:
@@ -213,143 +223,6 @@ def label_blobs(img_array):
     return blobs
 
 
-# def build_refere
-
-
-# def complete_grid(
-#     point_pairs: List[Tuple[Tuple[float, float], Tuple[float, float]]],
-# ) -> List[Tuple[float, float]]:
-#     """
-#     Fill out a grid based on pairs of adjacent points and an axis-aligned bounding box.
-
-#     Args:
-#         point_pairs: List of point pairs, where each pair contains adjacent grid points
-#                      that are one unit of spacing apart.
-#                      Format: [((x1, y1), (x2, y2)), ...]
-#         bounding_box: Axis-aligned bounding box [min_x, min_y, max_x, max_y]
-
-#     Returns:
-#         List of all grid points within the bounding box.
-#     """
-#     # Step 1: Extract individual points from pairs
-#     all_points = []
-#     for pair in point_pairs:
-#         all_points.extend(pair)
-#     # Remove duplicates
-#     all_points = list({point for point in all_points})
-
-#     # Step 2: Determine grid vectors
-#     vectors = []
-#     for p1, p2 in point_pairs:
-#         vector = (p2[0] - p1[0], p2[1] - p1[1])
-#         vectors.append(vector)
-
-#     # Find two linearly independent vectors
-#     selected_vectors = []
-#     for v in vectors:
-#         # Skip zero vectors
-#         if v[0] == 0 and v[1] == 0:
-#             continue
-
-#         # Normalize vector
-#         length = math.sqrt(v[0] ** 2 + v[1] ** 2)
-#         normalized_v = (v[0] / length, v[1] / length)
-
-#         # Check if vector is linearly independent from already selected ones
-#         is_independent = True
-#         for selected_v in selected_vectors:
-#             # If vectors are parallel (dot product ≈ ±1)
-#             dot_product = abs(
-#                 normalized_v[0] * selected_v[0] + normalized_v[1] * selected_v[1]
-#             )
-#             if abs(dot_product - 1.0) < 1e-10:
-#                 is_independent = False
-#                 break
-
-#         if is_independent:
-#             selected_vectors.append(normalized_v)
-#             if len(selected_vectors) == 2:
-#                 break
-
-#     if len(selected_vectors) < 2:
-#         # If we don't have 2 independent vectors, try to infer the second one
-#         if len(selected_vectors) == 1:
-#             # Create a perpendicular vector to the one we have
-#             v = selected_vectors[0]
-#             perpendicular_v = (-v[1], v[0])
-#             selected_vectors.append(perpendicular_v)
-#         else:
-#             raise ValueError(
-#                 "Could not determine grid orientation from provided points"
-#             )
-
-#     # Get unit vectors with correct magnitudes
-#     unit_vectors = []
-#     for v_direction in selected_vectors:
-#         # Find the best matching actual vector with this direction
-#         best_match = None
-#         min_angle_diff = float("inf")
-
-#         for v in vectors:
-#             if v[0] == 0 and v[1] == 0:
-#                 continue
-
-#             v_length = math.sqrt(v[0] ** 2 + v[1] ** 2)
-#             v_norm = (v[0] / v_length, v[1] / v_length)
-
-#             # Compute angle difference
-#             dot_product = v_norm[0] * v_direction[0] + v_norm[1] * v_direction[1]
-#             angle_diff = abs(1.0 - abs(dot_product))
-
-#             if angle_diff < min_angle_diff:
-#                 min_angle_diff = angle_diff
-#                 best_match = v
-
-#         if best_match is not None:
-#             unit_vectors.append(best_match)
-#         else:
-#             # If no match found, use the direction vector with unit length
-#             unit_vectors.append(v_direction)
-
-#     # Step 3: Determine grid origin (can be any of the input points)
-#     origin = all_points[0]
-
-#     # Step 4: Find min/max grid indices needed to cover the bounding box
-#     min_x, min_y, max_x, max_y = (0, 0, 35, 35)
-
-#     # Create vectors as tuples
-#     v1 = unit_vectors[0]
-#     v2 = unit_vectors[1]
-
-#     # Estimate the range of grid indices needed
-#     # This is a conservative estimate to ensure we include all points within the box
-#     max_distance = max(
-#         math.sqrt((max_x - min_x) ** 2 + (max_y - min_y) ** 2),
-#         math.sqrt((max_x - origin[0]) ** 2 + (max_y - origin[1]) ** 2),
-#         math.sqrt((min_x - origin[0]) ** 2 + (min_y - origin[1]) ** 2),
-#     )
-
-#     # Ensure we cover enough space
-#     index_range = int(max_distance * 2) + 5  # Add some buffer
-
-#     # Step 5: Generate all potential grid points
-#     grid_points = []
-#     for i in range(-index_range, index_range + 1):
-#         for j in range(-index_range, index_range + 1):
-#             x = origin[0] + i * v1[0] + j * v2[0]
-#             y = origin[1] + i * v1[1] + j * v2[1]
-#             grid_points.append((x, y))
-
-#     # Step 6: Filter points to only those inside the axis-aligned bounding box
-#     filtered_points = [
-#         p for p in grid_points if min_x <= p[0] <= max_x and min_y <= p[1] <= max_y
-#     ]
-
-#     return filtered_points
-
-
-# def get_grid_from_adjacent(adj_blobs):
-
 
 def points_at_distance(p1, p2, distance):
     """
@@ -467,28 +340,6 @@ def find_4x4(solve_array):
                 extracted = extract_4x4(solve_array, x, y)
                 if extracted is not None:
                     return extracted
-    
-# def encode_solution(solve_array):
-#     north = np.array([0, 0])
-#     south = np.array([1, 1])
-#     west = np.array([1, 0])
-#     east = np.array([0, 1])
-
-#     for row in solve_array:
-#         for col in row:
-#             if col == "U":
-#                 col = north
-#             elif col == "D":
-#                 col = south
-#             elif col == "L":
-#                 col = west
-#             elif col == "R":
-#                 col = east
-#             else:
-#                 raise Exception("Invalid direction")
-    
-#     return np.array(solve_array)
-
 
 def solve(image: Image):
     draw = ImageDraw.Draw(image)
@@ -552,7 +403,7 @@ def solve(image: Image):
             dist = p1.distance(p2)
             for loc in range(1, 3):
                 if abs(dist - loc * GRID_SPACING) < 0.05 * GRID_SPACING:
-                    grid_pairs.append((p1, p2, p1.angle(p2)))
+                    grid_pairs.append((p1, p2, p1.angle_90(p2)))
                     break
 
     # print("Pairs")
@@ -598,10 +449,22 @@ def solve(image: Image):
 
     print("Angles:", angle1, angle2)
 
-    # TODO: rotate all points so that grid is horizontal and vertical
+    # rotate all points so that grid is horizontal and vertical
+
+    # figure out which angle is closest to 0
+    if abs(angle1) < abs(angle2):
+        rotation = angle1
+    else:
+        rotation = angle2
+
+    print(f"Rotation: {rotation}")
+
+    # rotate all points around 0,0
+    rotated_points = [p.rotate(-rotation) for p in blob_centers]
+
 
     # starting with an arbitrary first point, create the horizontal and vertical grid points, going 1 line past the bounds of the view window
-    cur_point = blob_centers[0]
+    cur_point = rotated_points[0]
     cur_x = cur_point.x
     cur_y = cur_point.y
     while cur_y > -GRID_SPACING:
@@ -632,7 +495,7 @@ def solve(image: Image):
             draw.point((round(col.x), round(col.y)), fill="green")
             # find blob center that is within DOT_CENTER_TO_GRID (+margin), then derive that grid points direction
             found = False
-            for b in blob_centers:
+            for b in rotated_points:
                 if col.distance(b) < DOT_CENTER_TO_GRID * 1.25:
                     crow.append(grid_to_blob_direction(col, b, 20.0))
                     found = True
