@@ -11,13 +11,13 @@ Y_BOXES = 8
 
 
 def fill_box(x, y, spacing):
-    draw.text((x+10, y+10), str(spacing), fill="black", font=font)
+    draw.text((x + 10, y + 10), str(spacing), fill="black", font=font)
 
-    cur_y = y+20
-    max_y = y+BOX_LEN-20
+    cur_y = y + 20
+    max_y = y + BOX_LEN - 20
     while cur_y <= max_y:
-        cur_x = x+20
-        max_x = x+BOX_LEN-20
+        cur_x = x + 20
+        max_x = x + BOX_LEN - 20
 
         while cur_x <= max_x:
             draw.point((cur_x, cur_y), fill="black")
@@ -26,7 +26,7 @@ def fill_box(x, y, spacing):
         cur_y += spacing
 
 
-im = Image.new('RGB', (WIDTH, HEIGHT), color="white")
+im = Image.new("RGB", (WIDTH, HEIGHT), color="white")
 # pixels = im.load()
 # pixels[512,512] = (0,0,0)
 
@@ -39,14 +39,14 @@ font = ImageFont.truetype(font_path, 40)
 
 # draw horizontal lines
 cur_y = MARGIN
-for y in range(Y_BOXES+1):
-    draw.line(((MARGIN, cur_y), (WIDTH-MARGIN, cur_y)), width=3, fill="black")
+for y in range(Y_BOXES + 1):
+    draw.line(((MARGIN, cur_y), (WIDTH - MARGIN, cur_y)), width=3, fill="black")
     cur_y += BOX_LEN
 
 # draw vertical lines
 cur_x = MARGIN
-for x in range(X_BOXES+1):
-    draw.line(((cur_x, MARGIN), (cur_x, HEIGHT-MARGIN)), width=3, fill="black")
+for x in range(X_BOXES + 1):
+    draw.line(((cur_x, MARGIN), (cur_x, HEIGHT - MARGIN)), width=3, fill="black")
     cur_x += BOX_LEN
 
 # fill each box

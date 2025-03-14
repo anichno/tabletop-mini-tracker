@@ -1,4 +1,12 @@
 #!/usr/bin/env python3
+# /// script
+# requires-python = ">=3.12"
+# dependencies = [
+#     "matplotlib",
+#     "numpy",
+#     "pyserial",
+# ]
+# ///
 
 import numpy as np
 import matplotlib.pyplot as plt
