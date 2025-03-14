@@ -7,7 +7,9 @@ from dataclasses import dataclass
 from io import BytesIO
 from typing import List, Tuple
 
+import microdots as mdots
 import numpy as np
+from microdots.mini_sequences import A1, A2, MNS
 from PIL import Image, ImageDraw
 
 GRID_SPACING = 7.666666666666667
@@ -418,6 +420,74 @@ def grid_to_blob_direction(g: Point, b: Point, tolerance: float):
         return "L"
     else:
         return "!"
+    
+def extract_4x4(solve_array, start_x, start_y):
+    north = np.array([0, 0])
+    south = np.array([1, 1])
+    west = np.array([1, 0])
+    east = np.array([0, 1])
+
+    extracted = list()
+    for y in range(start_y, len(solve_array)):
+        row = list()
+        for x in range(start_x, len(solve_array[y])):
+            val = solve_array[y][x]
+            if val != "*" and val != "!":
+                if val == "U":
+                    val = north
+                elif val == "D":
+                    val = south
+                elif val == "L":
+                    val = west
+                elif val == "R":
+                    val = east
+                else:
+                    raise Exception(f"Invalid val: {val}")
+                row.append(val)
+                if len(row) == 4:
+                    break
+            else:
+                return None
+        if len(row) == 4:
+            extracted.append(row)
+            if len(extracted) == 4:
+                break
+        else:
+            return None
+
+    if len(extracted) == 4:
+        return np.array(extracted)
+    else:
+        return None
+
+def find_4x4(solve_array):
+    for y, row in enumerate(solve_array):
+        for x, col in enumerate(row):
+            if col != "*" and col != "!":
+                extracted = extract_4x4(solve_array, x, y)
+                if extracted is not None:
+                    return extracted
+    
+# def encode_solution(solve_array):
+#     north = np.array([0, 0])
+#     south = np.array([1, 1])
+#     west = np.array([1, 0])
+#     east = np.array([0, 1])
+
+#     for row in solve_array:
+#         for col in row:
+#             if col == "U":
+#                 col = north
+#             elif col == "D":
+#                 col = south
+#             elif col == "L":
+#                 col = west
+#             elif col == "R":
+#                 col = east
+#             else:
+#                 raise Exception("Invalid direction")
+    
+#     return np.array(solve_array)
 
 
 def solve(image: Image):
@@ -563,8 +633,8 @@ def solve(image: Image):
             # find blob center that is within DOT_CENTER_TO_GRID (+margin), then derive that grid points direction
             found = False
             for b in blob_centers:
-                if col.distance(b) < DOT_CENTER_TO_GRID * 1.1:
-                    crow.append(grid_to_blob_direction(col, b, 15.0))
+                if col.distance(b) < DOT_CENTER_TO_GRID * 1.25:
+                    crow.append(grid_to_blob_direction(col, b, 20.0))
                     found = True
                     break
 
@@ -580,9 +650,22 @@ def solve(image: Image):
             print(col, end="")
         print()
 
-    # TODO: check for a contiguous 4x4 region in code_points, then convert that to the format expected by py-microdots
+    # check for a contiguous 4x4 region in code_points, then convert that to the format expected by py-microdots
+    extracted = find_4x4(code_points)
 
-    # TODO: pass matrix to py-microdots and return the coords
+    # pass matrix to py-microdots and return the coords
+    codec4x4 = mdots.AnotoCodec(
+        mns=MNS,
+        mns_order=4,
+        sns=[A1, A2],
+        pfactors=(3, 5),
+        delta_range=(1, 15),
+    )
+    pos = codec4x4.decode_position(extracted)
+    print(f"Pos: {pos}")
+    sec = codec4x4.decode_section(extracted, pos=pos)
+    print(f"Sec: {sec}")
+
 
     image.save("test.png")
     # show_image(image)
@@ -597,7 +680,11 @@ if __name__ == "__main__":
     with open("testcases.json", "r") as infi:
         test_cases = json.load(infi)
 
-    test_case = test_cases[99]
+    test_case = test_cases[98]
+    for key,val in test_case.items():
+        if key != "image":
+            print(key, ":", val)
+    # test_case = test_cases[0]
     img_bytes = base64.b64decode(test_case["image"])
     img = Image.open(BytesIO(img_bytes))
 
