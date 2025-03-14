@@ -257,6 +257,37 @@ def points_at_distance(p1, p2, distance):
 
     return p0, p3
 
+def bruteforce_grid_shift(grid_points, blob_centers):
+    best_shift_code_points = None
+    best_found = 0
+
+    for shift_x, shift_y in [(-DOT_CENTER_TO_GRID, 0), (0,-DOT_CENTER_TO_GRID), (DOT_CENTER_TO_GRID,0), (0, DOT_CENTER_TO_GRID)]:
+        code_points = list()
+        num_found = 0
+        for row in grid_points:
+            crow = list()
+            for col in row:
+                # find blob center that is within DOT_CENTER_TO_GRID (+margin), then derive that grid points direction
+                grid_point = Point(col.x + shift_x, col.y + shift_y)
+                found = False
+                for b in blob_centers:
+                    if grid_point.distance(b) < DOT_CENTER_TO_GRID * 1.25:
+                        crow.append(grid_to_blob_direction(grid_point, b, 20.0))
+                        found = True
+                        num_found += 1
+                        break
+
+                if not found:
+                    crow.append("*")
+
+            code_points.append(crow)
+
+        if num_found > best_found:
+            best_shift_code_points = code_points
+            best_found = num_found
+
+    return best_shift_code_points
+
 
 def cluster_pairs(point_pairs: List[Tuple[Point, Point, float]], tolerance):
     point_pairs.sort(key=lambda x: x[2])
@@ -463,48 +494,40 @@ def solve(image: Image):
     rotated_points = [p.rotate(-rotation) for p in blob_centers]
 
 
-    # starting with an arbitrary first point, create the horizontal and vertical grid points, going 1 line past the bounds of the view window
+    # starting with the most central point, create the horizontal and vertical grid points, going 1 line past the bounds of the view window
+    center_point = Point(IMAGE_SIZE/2, IMAGE_SIZE/2).rotate(-rotation)
     cur_point = rotated_points[0]
+    dist = cur_point.distance(center_point)
+    for p in rotated_points[1:]:
+        new_dist = p.distance(center_point)
+        if new_dist < dist:
+            dist = new_dist
+            cur_point = p
+
+    min_x = min((p.x for p in rotated_points))
+    min_y = min((p.y for p in rotated_points))
+    max_x = max((p.x for p in rotated_points))
+    max_y = max((p.y for p in rotated_points))
     cur_x = cur_point.x
     cur_y = cur_point.y
-    while cur_y > -GRID_SPACING:
+    while cur_y > min_y-GRID_SPACING:
         cur_y -= GRID_SPACING
 
-    while cur_x > -GRID_SPACING:
+    while cur_x > min_x-GRID_SPACING:
         cur_x -= GRID_SPACING
 
     grid_points = list()
-    while cur_y < 36 + GRID_SPACING:
+    while cur_y <= max_y + GRID_SPACING*2:
         x = cur_x
         row = list()
-        while x < 36 + GRID_SPACING:
+        while x <= max_x + GRID_SPACING*2:
             row.append(Point(x, cur_y))
             x += GRID_SPACING
         cur_y += GRID_SPACING
         grid_points.append(row)
 
-    # TODO: Determine how to shift grid points. Shift should only be by DOT_CENTER_TO_GRID
-    for row in grid_points:
-        for col in row:
-            col.y += DOT_CENTER_TO_GRID
-
-    code_points = list()
-    for row in grid_points:
-        crow = list()
-        for col in row:
-            draw.point((round(col.x), round(col.y)), fill="green")
-            # find blob center that is within DOT_CENTER_TO_GRID (+margin), then derive that grid points direction
-            found = False
-            for b in rotated_points:
-                if col.distance(b) < DOT_CENTER_TO_GRID * 1.25:
-                    crow.append(grid_to_blob_direction(col, b, 20.0))
-                    found = True
-                    break
-
-            if not found:
-                crow.append("*")
-
-        code_points.append(crow)
+    # Determine how to shift grid points. Shift should only be by DOT_CENTER_TO_GRID
+    code_points = bruteforce_grid_shift(grid_points, rotated_points)
 
     # TODO: if any side has some known, where the known ones are in line with the side, any unknowns can be inferred to be just outside the view window
 
