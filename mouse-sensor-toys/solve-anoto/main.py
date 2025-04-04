@@ -30,7 +30,7 @@ class Point:
 
     def distance(self, other):
         return math.sqrt((self.x - other.x) ** 2 + (self.y - other.y) ** 2)
-    
+
     def angle_90(self, other):
         dx = self.x - other.x
         dy = self.y - other.y
@@ -50,15 +50,15 @@ class Point:
         degrees = math.degrees(radians)
 
         return degrees
-    
+
     def rotate(self, degrees):
         # Convert degrees to radians
         radians = math.radians(degrees)
-        
+
         # Apply rotation formulas
         x_new = self.x * math.cos(radians) - self.y * math.sin(radians)
         y_new = self.x * math.sin(radians) + self.y * math.cos(radians)
-        
+
         return Point(x_new, y_new)
 
 
@@ -225,7 +225,6 @@ def label_blobs(img_array):
     return blobs
 
 
-
 def points_at_distance(p1, p2, distance):
     """
     Calculate two new points at a specified distance from the original points,
@@ -259,11 +258,17 @@ def points_at_distance(p1, p2, distance):
 
     return p0, p3
 
+
 def bruteforce_grid_shift(grid_points, blob_centers):
     best_shift_code_points = None
     best_found = 0
 
-    for shift_x, shift_y in [(-DOT_CENTER_TO_GRID, 0), (0,-DOT_CENTER_TO_GRID), (DOT_CENTER_TO_GRID,0), (0, DOT_CENTER_TO_GRID)]:
+    for shift_x, shift_y in [
+        (-DOT_CENTER_TO_GRID, 0),
+        (0, -DOT_CENTER_TO_GRID),
+        (DOT_CENTER_TO_GRID, 0),
+        (0, DOT_CENTER_TO_GRID),
+    ]:
         code_points = list()
         num_found = 0
         for row in grid_points:
@@ -326,7 +331,8 @@ def grid_to_blob_direction(g: Point, b: Point, tolerance: float):
         return "L"
     else:
         return "!"
-    
+
+
 def extract_4x4(solve_array, start_x, start_y):
     north = np.array([0, 0])
     south = np.array([1, 1])
@@ -366,13 +372,15 @@ def extract_4x4(solve_array, start_x, start_y):
     else:
         return None
 
+
 def find_4x4(solve_array):
     for y, row in enumerate(solve_array):
         for x, col in enumerate(row):
             if col != "*" and col != "!":
                 extracted = extract_4x4(solve_array, x, y)
                 if extracted is not None:
-                    return (x,y,extracted)
+                    return (x, y, extracted)
+
 
 def solve(image: Image):
     draw = ImageDraw.Draw(image)
@@ -498,9 +506,8 @@ def solve(image: Image):
     # rotate all points around 0,0
     rotated_points = [p.rotate(-rotation) for p in blob_centers]
 
-
     # starting with the most central point, create the horizontal and vertical grid points, going 1 line past the bounds of the view window
-    center_point = Point(IMAGE_SIZE/2, IMAGE_SIZE/2).rotate(-rotation)
+    center_point = Point(IMAGE_SIZE / 2, IMAGE_SIZE / 2).rotate(-rotation)
     cur_point = rotated_points[0]
     dist = cur_point.distance(center_point)
     for p in rotated_points[1:]:
@@ -515,17 +522,17 @@ def solve(image: Image):
     max_y = max((p.y for p in rotated_points))
     cur_x = cur_point.x
     cur_y = cur_point.y
-    while cur_y > min_y-GRID_SPACING:
+    while cur_y > min_y - GRID_SPACING:
         cur_y -= GRID_SPACING
 
-    while cur_x > min_x-GRID_SPACING:
+    while cur_x > min_x - GRID_SPACING:
         cur_x -= GRID_SPACING
 
     grid_points = list()
-    while cur_y <= max_y + GRID_SPACING*2:
+    while cur_y <= max_y + GRID_SPACING * 2:
         x = cur_x
         row = list()
-        while x <= max_x + GRID_SPACING*2:
+        while x <= max_x + GRID_SPACING * 2:
             row.append(Point(x, cur_y))
             x += GRID_SPACING
         cur_y += GRID_SPACING
@@ -541,20 +548,104 @@ def solve(image: Image):
     #         print(col, end="")
     #     print()
 
-    # check for a contiguous 4x4 region in code_points, then convert that to the format expected by py-microdots
-    continuous = find_4x4(code_points)
-    if continuous is None:
-        return None
-        # image.save("test.png")
-        # print("Angles:", angle1, angle2)
-        # print(f"Rotation: {rotation}")
-        # for row in code_points:
-        #     for col in row:
-        #         print(col, end="")
-        #     print()
-    offset_x, offset_y, extracted = continuous
+    return code_points
 
-    # pass matrix to py-microdots and return the coords
+    # check for a contiguous 4x4 region in code_points, then convert that to the format expected by py-microdots
+    # continuous = find_4x4(code_points)
+    # if continuous is None:
+    #     return None
+    #     # image.save("test.png")
+    #     # print("Angles:", angle1, angle2)
+    #     # print(f"Rotation: {rotation}")
+    #     # for row in code_points:
+    #     #     for col in row:
+    #     #         print(col, end="")
+    #     #     print()
+    # offset_x, offset_y, extracted = continuous
+
+    # return extracted
+
+    # # pass matrix to py-microdots and return the coords
+    # codec4x4 = mdots.AnotoCodec(
+    #     mns=MNS,
+    #     mns_order=4,
+    #     sns=[A1, A2],
+    #     pfactors=(3, 5),
+    #     delta_range=(1, 15),
+    # )
+    # pos = codec4x4.decode_position(extracted)
+    # # print(f"Pos: {pos}")
+    # sec = codec4x4.decode_section(extracted, pos=pos)
+    # # print(f"Sec: {sec}")
+
+    # # image.save("test.png")
+    # # show_image(image)
+    # return ((int(pos[0])-offset_x + len(code_points[0])//2, int(pos[1])-offset_y+len(code_points)//2), (int(sec[0]), int(sec[1])))
+
+
+def show_image(image):
+    display = image.resize((400, 400), Image.LANCZOS)
+    display.show()
+
+
+def test_case_to_image(array, rotation):
+    SPACING = 3
+    CAMERA_VIEW_PIXELS = 14
+    CAMERA_RESOLUTION = 36
+
+    anoto_img = Image.new(
+        "RGB", (len(array) * SPACING, len(array) * SPACING), color="white"
+    )
+    draw = ImageDraw.Draw(anoto_img)
+
+    north = np.array([0, 0])
+    south = np.array([1, 1])
+    west = np.array([1, 0])
+    east = np.array([0, 1])
+
+    draw_y = 1
+    for y in range(len(array)):
+        draw_x = 1
+        for x in range(len(array)):
+            val = array[y, x]
+            if np.array_equal(north, val):
+                draw.point((draw_x, draw_y - 1), fill="black")
+            elif np.array_equal(south, val):
+                draw.point((draw_x, draw_y + 1), fill="black")
+            elif np.array_equal(east, val):
+                draw.point((draw_x + 1, draw_y), fill="black")
+            elif np.array_equal(west, val):
+                draw.point((draw_x - 1, draw_y), fill="black")
+
+            draw_x += SPACING
+
+        draw_y += SPACING
+
+    # anoto_img.save(f"{rotation}.png")
+
+    # rotate image
+
+    # crop center
+    center = anoto_img.width / 2
+    small = anoto_img.crop(
+        (
+            center - CAMERA_VIEW_PIXELS / 2,
+            center - CAMERA_VIEW_PIXELS / 2,
+            center + CAMERA_VIEW_PIXELS / 2,
+            center + CAMERA_VIEW_PIXELS / 2,
+        )
+    )
+
+    # resize to camera resolution
+    resized = small.resize((CAMERA_RESOLUTION, CAMERA_RESOLUTION), Image.LANCZOS)
+
+    return resized
+
+
+def generate_test_cases():
+    ANOTO_SIZE = 3375
+    CAMERA_VIEW_GRID = 5
+
     codec4x4 = mdots.AnotoCodec(
         mns=MNS,
         mns_order=4,
@@ -562,98 +653,14 @@ def solve(image: Image):
         pfactors=(3, 5),
         delta_range=(1, 15),
     )
-    pos = codec4x4.decode_position(extracted)
-    # print(f"Pos: {pos}")
-    sec = codec4x4.decode_section(extracted, pos=pos)
-    # print(f"Sec: {sec}")
 
+    g = codec4x4.encode_bitmatrix(shape=(ANOTO_SIZE, ANOTO_SIZE), section=(0, 0))
 
-    # image.save("test.png")
-    # show_image(image)
-    return ((int(pos[0])-offset_x + len(code_points[0])//2, int(pos[1])-offset_y+len(code_points)//2), (int(sec[0]), int(sec[1])))
+    for y in range(0, ANOTO_SIZE - CAMERA_VIEW_GRID * 2):
+        for x in range(0, ANOTO_SIZE - CAMERA_VIEW_GRID * 2):
+            sub_grid = g[y : y + CAMERA_VIEW_GRID * 2, x : x + CAMERA_VIEW_GRID * 2]
+            yield sub_grid
 
-
-def show_image(image):
-    display = image.resize((400, 400), Image.LANCZOS)
-    display.show()
-
-def generate_test_cases():
-    ANOTO_SIZE = 3375
-    SPACING = 3
-    CAMERA_VIEW_PIXELS = 14
-    CAMERA_RESOLUTION = 36
-
-    # Load test image from cache or generate it
-    try:
-        anoto_img = Image.open("anoto.png")
-    except FileNotFoundError:
-        codec4x4 = mdots.AnotoCodec(
-            mns=MNS,
-            mns_order=4,
-            sns=[A1, A2],
-            pfactors=(3, 5),
-            delta_range=(1, 15),
-        )
-
-        anoto_img = Image.new("RGB", (ANOTO_SIZE*SPACING, ANOTO_SIZE*SPACING), color="white")
-        draw = ImageDraw.Draw(anoto_img)
-
-        north = np.array([0, 0])
-        south = np.array([1, 1])
-        west = np.array([1, 0])
-        east = np.array([0, 1])
-
-        g = codec4x4.encode_bitmatrix(shape=(ANOTO_SIZE, ANOTO_SIZE), section=(0, 0))
-        draw_y = 1
-        for y in range(ANOTO_SIZE):
-            draw_x = 1
-            for x in range(ANOTO_SIZE):
-                val = g[y, x]
-                if np.array_equal(north, val):
-                    draw.point((draw_x, draw_y - 1), fill="black")
-                elif np.array_equal(south, val):
-                    draw.point((draw_x, draw_y + 1), fill="black")
-                elif np.array_equal(east, val):
-                    draw.point((draw_x + 1, draw_y), fill="black")
-                elif np.array_equal(west, val):
-                    draw.point((draw_x - 1, draw_y), fill="black")
-
-                draw_x += SPACING
-
-            draw_y += SPACING
-
-        anoto_img.save("anoto.png")
-
-    # generate test cases
-    # x = CAMERA_VIEW_PIXELS*3
-    y = CAMERA_VIEW_PIXELS*3
-
-    while y < ANOTO_SIZE*SPACING-CAMERA_VIEW_PIXELS*3:
-        x = CAMERA_VIEW_PIXELS*3
-        # x = ANOTO_SIZE*SPACING - 100
-        while x < ANOTO_SIZE*SPACING-CAMERA_VIEW_PIXELS*3:
-            real_x = x//SPACING
-            real_y = y//SPACING
-            rotation = 0
-            large = anoto_img.crop((x-CAMERA_VIEW_PIXELS*2, y-CAMERA_VIEW_PIXELS*2, x+CAMERA_VIEW_PIXELS*2, y+CAMERA_VIEW_PIXELS*2))
-
-            # TODO: rotate image
-
-            # crop center to use as test case
-            center = large.width / 2
-            small = large.crop((center - CAMERA_VIEW_PIXELS/2, center-CAMERA_VIEW_PIXELS/2, center+CAMERA_VIEW_PIXELS/2, center+CAMERA_VIEW_PIXELS/2))
-            # small.save("1.png")
-
-            # resize to camera resolution
-            resized = small.resize((CAMERA_RESOLUTION, CAMERA_RESOLUTION), Image.LANCZOS)
-            # resized.save("2.png")
-
-            # print(real_x, real_y)
-            yield (real_x, real_y, rotation, resized)
-            x += 1
-        
-        y += 1
-    # print(solve(resized))
 
 def evaluate(test_case):
     test_x, test_y, test_rotation, test_img = test_case
@@ -669,9 +676,83 @@ def evaluate(test_case):
     if save_test_case:
         test_img.save(f"interesting_test_cases/{test_x}_{test_y}_{test_rotation}.png")
         return False
-    
+
     return True
-    
+
+
+def print_grid(array):
+    north = np.array([0, 0])
+    south = np.array([1, 1])
+    west = np.array([1, 0])
+    east = np.array([0, 1])
+
+    for y in range(len(array)):
+        for x in range(len(array)):
+            val = array[y][x]
+            if np.array_equal(val, north):
+                print("U", end=" ")
+            elif np.array_equal(val, south):
+                print("D", end=" ")
+            elif np.array_equal(val, east):
+                print("R", end=" ")
+            elif np.array_equal(val, west):
+                print("L", end=" ")
+        print()
+
+
+def strip_empty_from_grid(grid):
+    def is_non_empty(row):
+        return any(cell not in ("*", "!") for cell in row)
+
+    # Remove empty rows
+    filtered_rows = [row for row in grid if is_non_empty(row)]
+
+    # Transpose to filter columns
+    transposed = list(zip(*filtered_rows))
+    filtered_cols = [col for col in transposed if is_non_empty(col)]
+
+    # Transpose back to get final grid
+    cleaned = [list(row) for row in zip(*filtered_cols)]
+
+    return cleaned
+
+
+def score_grid_in_grid(sub_grid, parent_grid):
+    north = np.array([0, 0])
+    south = np.array([1, 1])
+    west = np.array([1, 0])
+    east = np.array([0, 1])
+
+    best_score = 0
+    for start_y in range(len(parent_grid) - len(sub_grid)):
+        for start_x in range(len(parent_grid[0]) - len(sub_grid[0])):
+            score_grid = parent_grid[
+                start_y : start_y + len(sub_grid), start_x : start_x + len(sub_grid[0])
+            ]
+            score = 0
+            for r1, r2 in zip(sub_grid, score_grid):
+                for c1, c2 in zip(r1, r2):
+                    if c1 == "!" or c1 == "*":
+                        continue
+
+                    if (
+                        (c1 == "U" and np.array_equal(c2, north))
+                        or (c1 == "D" and np.array_equal(c2, south))
+                        or (c1 == "L" and np.array_equal(c2, west))
+                        or (c1 == "R" and np.array_equal(c2, east))
+                    ):
+                        score += 1
+
+            if score > best_score:
+                best_score = score
+
+    return best_score
+
+
+def rotate_solve_grid(grid):
+    rotated = [list(row) for row in zip(*grid[::-1])]
+    return rotated
+
 
 if __name__ == "__main__":
     # with open("testcases.json", "r") as infi:
@@ -691,15 +772,57 @@ if __name__ == "__main__":
     # print(x,y,sec_x, sec_y)
     failures = 0
     test_cases = generate_test_cases()
-    with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
-        batch = list(itertools.islice(test_cases, 1000))
+    # with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
+    #     batch = list(itertools.islice(test_cases, 1000))
 
-        while batch:
-            futures = [executor.submit(evaluate, test_case) for test_case in batch]
-            
-            for future in concurrent.futures.as_completed(futures):
-                if not future.result():
-                    failures += 1
-                    print(failures)
+    #     while batch:
+    #         futures = [executor.submit(evaluate, test_case) for test_case in batch]
 
-            batch = list(itertools.islice(test_cases, 1000))
+    #         for future in concurrent.futures.as_completed(futures):
+    #             if not future.result():
+    #                 failures += 1
+    #                 print(failures)
+
+    #         batch = list(itertools.islice(test_cases, 1000))
+
+    failed_to_solve = 0
+    for i, tc in enumerate(test_cases):
+        # if i != 2:
+        #     continue
+        img = test_case_to_image(tc, i)
+        # print_grid(tc)
+        img.save("test.png")
+
+        solved_grid = solve(img)
+        # print_grid(solved_grid)
+        # for row in solved_grid:
+        #     print(row)
+
+        solved_grid = strip_empty_from_grid(solved_grid)
+        # print()
+        # for row in reduced:
+        #     print(row)
+
+        solved = False
+        # for rotation in range(4):
+        # if rotation != 0:
+        #     solved_grid = rotate_solve_grid(solved_grid)
+
+        score = score_grid_in_grid(solved_grid, tc)
+        if score >= 16:
+            solved = True
+            # break
+
+        if not solved:
+            failed_to_solve += 1
+            print(i, failed_to_solve)
+            # print_grid(tc)
+            # for row in solved_grid:
+            #     print(row)
+            # img.save("test.png")
+            # break
+
+        # break
+        # img.save(f"{i}.png")
+        # if i > 4:
+        #     break
