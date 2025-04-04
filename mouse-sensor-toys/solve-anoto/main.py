@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 
 import base64
+import concurrent.futures
+import itertools
 import json
 import math
 from dataclasses import dataclass
@@ -271,8 +273,8 @@ def bruteforce_grid_shift(grid_points, blob_centers):
                 grid_point = Point(col.x + shift_x, col.y + shift_y)
                 found = False
                 for b in blob_centers:
-                    if grid_point.distance(b) < DOT_CENTER_TO_GRID * 1.25:
-                        crow.append(grid_to_blob_direction(grid_point, b, 20.0))
+                    if grid_point.distance(b) < DOT_CENTER_TO_GRID * 1.5:
+                        crow.append(grid_to_blob_direction(grid_point, b, 35.0))
                         found = True
                         num_found += 1
                         break
@@ -370,7 +372,7 @@ def find_4x4(solve_array):
             if col != "*" and col != "!":
                 extracted = extract_4x4(solve_array, x, y)
                 if extracted is not None:
-                    return extracted
+                    return (x,y,extracted)
 
 def solve(image: Image):
     draw = ImageDraw.Draw(image)
@@ -478,7 +480,7 @@ def solve(image: Image):
         if angle2 < 0:
             angle2 += 180
 
-    print("Angles:", angle1, angle2)
+    # print("Angles:", angle1, angle2)
 
     # rotate all points so that grid is horizontal and vertical
 
@@ -488,7 +490,10 @@ def solve(image: Image):
     else:
         rotation = angle2
 
-    print(f"Rotation: {rotation}")
+    if rotation > 45:
+        rotation = 90 - rotation
+
+    # print(f"Rotation: {rotation}")
 
     # rotate all points around 0,0
     rotated_points = [p.rotate(-rotation) for p in blob_centers]
@@ -531,13 +536,23 @@ def solve(image: Image):
 
     # TODO: if any side has some known, where the known ones are in line with the side, any unknowns can be inferred to be just outside the view window
 
-    for row in code_points:
-        for col in row:
-            print(col, end="")
-        print()
+    # for row in code_points:
+    #     for col in row:
+    #         print(col, end="")
+    #     print()
 
     # check for a contiguous 4x4 region in code_points, then convert that to the format expected by py-microdots
-    extracted = find_4x4(code_points)
+    continuous = find_4x4(code_points)
+    if continuous is None:
+        return None
+        # image.save("test.png")
+        # print("Angles:", angle1, angle2)
+        # print(f"Rotation: {rotation}")
+        # for row in code_points:
+        #     for col in row:
+        #         print(col, end="")
+        #     print()
+    offset_x, offset_y, extracted = continuous
 
     # pass matrix to py-microdots and return the coords
     codec4x4 = mdots.AnotoCodec(
@@ -548,32 +563,143 @@ def solve(image: Image):
         delta_range=(1, 15),
     )
     pos = codec4x4.decode_position(extracted)
-    print(f"Pos: {pos}")
+    # print(f"Pos: {pos}")
     sec = codec4x4.decode_section(extracted, pos=pos)
-    print(f"Sec: {sec}")
+    # print(f"Sec: {sec}")
 
 
-    image.save("test.png")
+    # image.save("test.png")
     # show_image(image)
+    return ((int(pos[0])-offset_x + len(code_points[0])//2, int(pos[1])-offset_y+len(code_points)//2), (int(sec[0]), int(sec[1])))
 
 
 def show_image(image):
     display = image.resize((400, 400), Image.LANCZOS)
     display.show()
 
+def generate_test_cases():
+    ANOTO_SIZE = 3375
+    SPACING = 3
+    CAMERA_VIEW_PIXELS = 14
+    CAMERA_RESOLUTION = 36
+
+    # Load test image from cache or generate it
+    try:
+        anoto_img = Image.open("anoto.png")
+    except FileNotFoundError:
+        codec4x4 = mdots.AnotoCodec(
+            mns=MNS,
+            mns_order=4,
+            sns=[A1, A2],
+            pfactors=(3, 5),
+            delta_range=(1, 15),
+        )
+
+        anoto_img = Image.new("RGB", (ANOTO_SIZE*SPACING, ANOTO_SIZE*SPACING), color="white")
+        draw = ImageDraw.Draw(anoto_img)
+
+        north = np.array([0, 0])
+        south = np.array([1, 1])
+        west = np.array([1, 0])
+        east = np.array([0, 1])
+
+        g = codec4x4.encode_bitmatrix(shape=(ANOTO_SIZE, ANOTO_SIZE), section=(0, 0))
+        draw_y = 1
+        for y in range(ANOTO_SIZE):
+            draw_x = 1
+            for x in range(ANOTO_SIZE):
+                val = g[y, x]
+                if np.array_equal(north, val):
+                    draw.point((draw_x, draw_y - 1), fill="black")
+                elif np.array_equal(south, val):
+                    draw.point((draw_x, draw_y + 1), fill="black")
+                elif np.array_equal(east, val):
+                    draw.point((draw_x + 1, draw_y), fill="black")
+                elif np.array_equal(west, val):
+                    draw.point((draw_x - 1, draw_y), fill="black")
+
+                draw_x += SPACING
+
+            draw_y += SPACING
+
+        anoto_img.save("anoto.png")
+
+    # generate test cases
+    # x = CAMERA_VIEW_PIXELS*3
+    y = CAMERA_VIEW_PIXELS*3
+
+    while y < ANOTO_SIZE*SPACING-CAMERA_VIEW_PIXELS*3:
+        x = CAMERA_VIEW_PIXELS*3
+        # x = ANOTO_SIZE*SPACING - 100
+        while x < ANOTO_SIZE*SPACING-CAMERA_VIEW_PIXELS*3:
+            real_x = x//SPACING
+            real_y = y//SPACING
+            rotation = 0
+            large = anoto_img.crop((x-CAMERA_VIEW_PIXELS*2, y-CAMERA_VIEW_PIXELS*2, x+CAMERA_VIEW_PIXELS*2, y+CAMERA_VIEW_PIXELS*2))
+
+            # TODO: rotate image
+
+            # crop center to use as test case
+            center = large.width / 2
+            small = large.crop((center - CAMERA_VIEW_PIXELS/2, center-CAMERA_VIEW_PIXELS/2, center+CAMERA_VIEW_PIXELS/2, center+CAMERA_VIEW_PIXELS/2))
+            # small.save("1.png")
+
+            # resize to camera resolution
+            resized = small.resize((CAMERA_RESOLUTION, CAMERA_RESOLUTION), Image.LANCZOS)
+            # resized.save("2.png")
+
+            # print(real_x, real_y)
+            yield (real_x, real_y, rotation, resized)
+            x += 1
+        
+        y += 1
+    # print(solve(resized))
+
+def evaluate(test_case):
+    test_x, test_y, test_rotation, test_img = test_case
+    solved = solve(test_img)
+    save_test_case = False
+    if solved is None:
+        save_test_case = True
+    else:
+        (pos_x, pos_y), sec = solved
+        if abs(test_x - pos_x) > 1 or abs(test_y - pos_y) > 1:
+            # Failed test case
+            save_test_case = True
+    if save_test_case:
+        test_img.save(f"interesting_test_cases/{test_x}_{test_y}_{test_rotation}.png")
+        return False
+    
+    return True
+    
 
 if __name__ == "__main__":
-    with open("testcases.json", "r") as infi:
-        test_cases = json.load(infi)
+    # with open("testcases.json", "r") as infi:
+    #     test_cases = json.load(infi)
 
-    test_case = test_cases[98]
-    for key,val in test_case.items():
-        if key != "image":
-            print(key, ":", val)
-    # test_case = test_cases[0]
-    img_bytes = base64.b64decode(test_case["image"])
-    img = Image.open(BytesIO(img_bytes))
+    # test_case = test_cases[98]
+    # for key,val in test_case.items():
+    #     if key != "image":
+    #         print(key, ":", val)
+    # # test_case = test_cases[0]
+    # img_bytes = base64.b64decode(test_case["image"])
+    # img = Image.open(BytesIO(img_bytes))
 
-    # show_image(img)
+    # # show_image(img)
 
-    solve(img)
+    # (x, y), (sec_x, sec_y) = solve(img)
+    # print(x,y,sec_x, sec_y)
+    failures = 0
+    test_cases = generate_test_cases()
+    with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
+        batch = list(itertools.islice(test_cases, 1000))
+
+        while batch:
+            futures = [executor.submit(evaluate, test_case) for test_case in batch]
+            
+            for future in concurrent.futures.as_completed(futures):
+                if not future.result():
+                    failures += 1
+                    print(failures)
+
+            batch = list(itertools.islice(test_cases, 1000))
