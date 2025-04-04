@@ -27,5 +27,6 @@ exclude = [
     "orientation_and_centering/nrf52-serial",
     "imu-toys/imu-nrf52-calibrator",
     "mouse-sensor-toys/mouse-nrf52-camera",
+    "mouse-sensor-toys/nrf52-paw3395-camera",
     "duck-hunt-firmwares/"
 ]
