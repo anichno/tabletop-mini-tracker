@@ -1,0 +1,13 @@
+[project]
+name = "solve-anoto-rust"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "microdots",
+    "numpy>=2.2.4",
+]
+
+[tool.uv.sources]
+microdots = { git = "https://github.com/cheind/py-microdots" }

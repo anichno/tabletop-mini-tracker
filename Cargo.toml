@@ -19,7 +19,7 @@ members = [
     "orientation_and_centering/serial-common",
     "imu-toys/imu-rpi-data-collect",
     "imu-toys/imu-processing-tests",
-    "imu-toys/imu-rpi-calibrator",
+    "imu-toys/imu-rpi-calibrator", "mouse-sensor-toys/mouse-vision", "mouse-sensor-toys/solve-anoto-rust",
 ]
 exclude = [
     "test-firmware",
@@ -28,5 +28,6 @@ exclude = [
     "imu-toys/imu-nrf52-calibrator",
     "mouse-sensor-toys/mouse-nrf52-camera",
     "mouse-sensor-toys/nrf52-paw3395-camera",
-    "duck-hunt-firmwares/"
+    "mouse-sensor-toys/nrf52-paw3395-locator",
+    "duck-hunt-firmwares/",
 ]

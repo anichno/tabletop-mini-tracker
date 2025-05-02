@@ -754,6 +754,18 @@ def rotate_solve_grid(grid):
     return rotated
 
 
+def image_to_2d_list(img):
+    image = list()
+    img_array = np.array(img.convert("L"))
+    for row in img_array:
+        new_row = list()
+        for col in row:
+            new_row.append(int(col))
+        image.append(new_row)
+
+    return image
+
+
 if __name__ == "__main__":
     # with open("testcases.json", "r") as infi:
     #     test_cases = json.load(infi)
