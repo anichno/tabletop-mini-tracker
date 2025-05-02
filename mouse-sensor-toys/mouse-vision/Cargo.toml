@@ -1,0 +1,12 @@
+[package]
+name = "mouse-vision"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+arrayvec = { version = "0.7.6", default-features = false }
+libm = "0.2.13"
+
+[profile.release]
+# `lto = true` should also work
+lto = 'fat'
