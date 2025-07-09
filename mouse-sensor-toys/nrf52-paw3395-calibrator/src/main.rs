@@ -1,6 +1,7 @@
 #![no_std]
 #![no_main]
 
+use cortex_m::prelude::_embedded_hal_blocking_serial_Write;
 use defmt::{debug, error, info};
 use embassy_executor::Spawner;
 use embassy_nrf::gpio::{self, Level, Output, OutputDrive};
@@ -21,6 +22,7 @@ async fn main(_spawner: Spawner) {
     info!("running!");
 
     let pause_btn = gpio::Input::new(p.P0_11, gpio::Pull::Up);
+    let capture_btn = gpio::Input::new(p.P0_12, gpio::Pull::Up);
 
     let mut config = uarte::Config::default();
     config.parity = uarte::Parity::EXCLUDED;
@@ -49,12 +51,26 @@ async fn main(_spawner: Spawner) {
 
     let mut camera_disabled = false;
     let mut btn_pressed = false;
+    let mut capture_btn_pressed = false;
     loop {
         if btn_pressed && pause_btn.is_high() {
             btn_pressed = false;
         }
 
+        if capture_btn_pressed && capture_btn.is_high() {
+            capture_btn_pressed = false;
+        }
+
         if camera_disabled {
+            if !capture_btn_pressed && capture_btn.is_low() {
+                debug!("Sending capture request");
+                capture_btn_pressed = true;
+                uart.write(&[b'C', b'A', b'P', b'T', b'U', b'R', b'E'])
+                    .await
+                    .unwrap();
+                uart.bflush().unwrap();
+            }
+
             Timer::after_millis(100).await;
             if !btn_pressed && pause_btn.is_low() {
                 debug!("Resuming");
@@ -83,6 +99,7 @@ async fn main(_spawner: Spawner) {
                 }
                 let transmit_time = embassy_time::Instant::now() - start;
                 debug!("Took {} ms to transmit frame", transmit_time.as_millis());
+                uart.bflush().unwrap();
             }
             Err(e) => error!("frame capture error: {:?}", e),
         }

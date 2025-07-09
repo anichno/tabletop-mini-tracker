@@ -1,5 +1,4 @@
 [workspace]
-resolver = "2"
 members = [
     "simulator",
     "mini-mount",
@@ -19,8 +18,11 @@ members = [
     "orientation_and_centering/serial-common",
     "imu-toys/imu-rpi-data-collect",
     "imu-toys/imu-processing-tests",
-    "imu-toys/imu-rpi-calibrator", "mouse-sensor-toys/mouse-vision", "mouse-sensor-toys/solve-anoto-rust",
+    "imu-toys/imu-rpi-calibrator",
+    "mouse-sensor-toys/mouse-vision",
+    "mouse-sensor-toys/solve-anoto-rust",
 ]
+resolver = "2"
 exclude = [
     "test-firmware",
     "screen-nrf52-sync-demo/nrf52",
@@ -30,4 +32,5 @@ exclude = [
     "mouse-sensor-toys/nrf52-paw3395-camera",
     "mouse-sensor-toys/nrf52-paw3395-locator",
     "duck-hunt-firmwares/",
+    "mouse-sensor-toys/nrf52-paw3395-calibrator",
 ]

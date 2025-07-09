@@ -17,7 +17,6 @@ X_BOXES = 8
 Y_BOXES = 6
 SPACING = 3
 DPI = 300
-TAG = "center_marked_up"
 
 
 def codec():
@@ -50,6 +49,8 @@ font = ImageFont.truetype(font_path, 40)
 draw.text((MARGIN + 10, MARGIN + 10), f"Spacing: {SPACING}", fill="black", font=font)
 
 draw.text((MARGIN + 10, MARGIN + 60), f"DPI: {DPI}", fill="black", font=font)
+
+draw.text((MARGIN + 10, MARGIN + 110), "No UP dots", fill="black", font=font)
 
 # draw grid
 
@@ -90,7 +91,9 @@ for y in range(3375):
     for x in range(3375):
         val = g[y, x]
         if numpy.array_equal(north, val):
-            draw.point((draw_x, draw_y - 1), fill="black")
+            # Leave out UP dots
+            pass
+            # draw.point((draw_x, draw_y - 1), fill="black")
         elif numpy.array_equal(south, val):
             draw.point((draw_x, draw_y + 1), fill="black")
         elif numpy.array_equal(east, val):
@@ -111,4 +114,4 @@ for y in range(3375):
         break
 
 # im.save(f"anoto_4x4_{SPACING}spacing_{DPI}dpi.png")
-im.save(f"anoto_4x4_{SPACING}spacing_{DPI}dpi_{TAG}.pdf", "PDF", resolution=DPI)
+im.save(f"anoto_4x4_{SPACING}spacing_{DPI}dpi.pdf", "PDF", resolution=DPI)

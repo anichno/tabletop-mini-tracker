@@ -51,6 +51,8 @@ draw.text((MARGIN + 10, MARGIN + 10), f"Spacing: {SPACING}", fill="black", font=
 
 draw.text((MARGIN + 10, MARGIN + 60), f"DPI: {DPI}", fill="black", font=font)
 
+draw.text((MARGIN + 10, MARGIN + 110), "Center Marked UP Dots", fill="black", font=font)
+
 # draw grid
 
 # draw horizontal lines
@@ -91,6 +93,7 @@ for y in range(3375):
         val = g[y, x]
         if numpy.array_equal(north, val):
             draw.point((draw_x, draw_y - 1), fill="black")
+            draw.point((draw_x, draw_y), fill="black")
         elif numpy.array_equal(south, val):
             draw.point((draw_x, draw_y + 1), fill="black")
         elif numpy.array_equal(east, val):
