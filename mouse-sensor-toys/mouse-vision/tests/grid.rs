@@ -1,8 +1,5 @@
-use std::collections::HashMap;
-
 use mouse_vision::{
-    find_dots, generate_brightness_map, get_code_points, reconstruct_grid, smooth_image, CodePoint,
-    Direction, Image,
+    find_dots, get_code_points, reconstruct_grid, smooth_image, CodePoint, Direction,
 };
 
 const GRID_2_SPACING_1748026902: [u8; 1296] = [
@@ -237,59 +234,6 @@ const SAMPLE_1_4_1751926548: [u8; 1296] = [
     81, 88, 98, 99, 91, 85, 84, 78, 73, 68, 16, 14, 25, 29, 38, 36, 45, 46, 59, 59, 61, 78, 55, 44,
     48, 58, 70, 63, 49, 40, 52, 62, 67, 57, 48, 39, 50, 70, 85, 82, 83, 78, 78, 70, 65, 57,
 ];
-
-fn get_brighteness_map() -> Image {
-    let empties = [
-        "empty_1748027042.json",
-        "empty_1748027122.json",
-        "empty_1748027135.json",
-        "empty_1748027144.json",
-        "empty_1748027160.json",
-    ];
-
-    let images: Vec<Image> = empties.iter().map(|e| sample_to_image(*e)).collect();
-
-    generate_brightness_map(&images)
-}
-
-fn sample_to_image(sample_name: &str) -> Image {
-    let file_contents = std::fs::read_to_string(format!("tests/samples/{sample_name}")).unwrap();
-    let pixels: Vec<u8> = serde_json::from_str(&file_contents).unwrap();
-    let mut img = [[0; 36]; 36];
-
-    for (row_idx, row) in pixels.chunks(36).enumerate() {
-        for (col_idx, col) in row.iter().enumerate() {
-            img[row_idx][col_idx] = *col;
-        }
-    }
-
-    img
-}
-
-// #[test]
-// fn count_dots() {
-//     let img = sample_to_image("grid_2_spacing_1748026902.json");
-//     // let img = sample_to_image("grid_1_spacing_1748026825.json");
-//     // let img = sample_to_image("6_3_1748027518.json");
-//     // let img = sample_to_image("5_4_45_deg_1748027447.json");
-//     // let img = sample_to_image("empty_1748027122.json");
-
-//     for row in img {
-//         for col in row {
-//             print!("{:>3} ", col);
-//         }
-//         println!();
-//     }
-
-//     // let bmap = get_brighteness_map();
-//     let smoothed = smooth_image(&img, 3);
-
-//     let dots = find_dots(&smoothed);
-
-//     dbg!(&dots);
-
-//     todo!()
-// }
 
 #[test]
 fn grid_2_spacing_grid_reconstruction_dots() {
